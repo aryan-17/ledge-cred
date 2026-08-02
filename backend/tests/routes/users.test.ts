@@ -9,9 +9,7 @@ const mockPrisma = {
 }
 
 vi.mock('../../src/lib/firebase', () => ({
-  getFirebaseApp: vi.fn(() => ({
-    auth: () => ({ verifyIdToken: mockVerifyIdToken })
-  }))
+  getFirebaseAuth: vi.fn(() => ({ verifyIdToken: mockVerifyIdToken }))
 }))
 
 vi.mock('../../src/lib/prisma', () => ({

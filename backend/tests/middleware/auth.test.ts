@@ -5,9 +5,7 @@ import { authMiddleware } from '../../src/middleware/auth'
 const mockVerifyIdToken = vi.fn()
 
 vi.mock('../../src/lib/firebase', () => ({
-  getFirebaseApp: vi.fn(() => ({
-    auth: () => ({ verifyIdToken: mockVerifyIdToken })
-  }))
+  getFirebaseAuth: vi.fn(() => ({ verifyIdToken: mockVerifyIdToken }))
 }))
 
 const testApp = new Hono()

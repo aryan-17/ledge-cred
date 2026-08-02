@@ -1,11 +1,11 @@
-import { getFirebaseApp } from '../lib/firebase'
+import { getFirebaseMessaging } from '../lib/firebase'
 
 export async function sendFcmNotification(
   fcmToken: string,
   title: string,
   body: string
 ): Promise<void> {
-  await getFirebaseApp().messaging().send({
+  await getFirebaseMessaging().send({
     token: fcmToken,
     notification: { title, body },
     android: {
