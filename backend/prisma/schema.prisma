@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uid          String        @id
+  fcmToken     String?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  settleEvents SettleEvent[]
+}
+
+model Transaction {
+  id                     String    @id
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [uid])
+  amountPaise            BigInt
+  type                   String
+  cardLast4              String?
+  bank                   String
+  txnTime                DateTime
+  dedupeHash             String
+  matchedSettleEventId   String?
+  suggestedType          String?
+  suggestedConfidence    Float?
+  reviewed               Boolean   @default(false)
+  updatedAt              DateTime  @default(now())
+  deletedAt              DateTime?
+
+  @@index([userId, updatedAt])
+}
+
+model SettleEvent {
+  id                    String    @id
+  userId                String
+  user                  User      @relation(fields: [userId], references: [uid])
+  parentRef             String
+  suffix                String?
+  status                String
+  requestedAmountPaise  BigInt
+  pendingSnapshotPaise  BigInt
+  createdAt             DateTime
+  clearedAt             DateTime?
+  clearedAmountPaise    BigInt?
+  updatedAt             DateTime  @default(now())
+  deletedAt             DateTime?
+
+  @@index([userId, updatedAt])
+}
