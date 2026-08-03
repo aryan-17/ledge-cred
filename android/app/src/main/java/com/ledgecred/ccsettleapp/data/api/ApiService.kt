@@ -11,9 +11,6 @@ interface ApiService {
     @POST("sync")
     suspend fun sync(@Body body: SyncRequest): SyncResponse
 
-    @POST("classify")
-    suspend fun classify(@Body body: ClassifyRequest): ClassifyResponse
-
     @PUT("fcm/token")
     suspend fun updateFcmToken(@Body body: Map<String, String>): Response<Unit>
 

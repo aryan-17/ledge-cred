@@ -34,14 +34,5 @@ object WorkerScheduler {
                 .setConstraints(Constraints(requiredNetworkType = NetworkType.CONNECTED))
                 .build()
         )
-
-        // Classify: daily (runs overnight alongside digest window)
-        wm.enqueueUniquePeriodicWork(
-            "classify",
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<ClassifyWorker>(24, TimeUnit.HOURS)
-                .setConstraints(Constraints(requiredNetworkType = NetworkType.CONNECTED))
-                .build()
-        )
     }
 }

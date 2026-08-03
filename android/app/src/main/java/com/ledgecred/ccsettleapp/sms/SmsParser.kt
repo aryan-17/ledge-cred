@@ -26,7 +26,8 @@ object SmsParser {
         "ICICIB" to "ICICI",   "ICICIN" to "ICICI",
         "AXISBK" to "Axis",    "AXISBN" to "Axis",
         "KOTAKB" to "Kotak",   "KOTAKN" to "Kotak",
-        "YESBNK" to "Yes Bank","INDBNK" to "IndusInd",
+        "YESBNK" to "Yes Bank","IDFCBN" to "IDFC",
+        "INDBNK" to "IndusInd","IDFCCD" to "IDFC",
         "PNBSMS" to "PNB",     "BOIIND" to "BOI"
     )
 

@@ -8,7 +8,7 @@ workmanager = "2.9.0"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
 firebase-bom = "33.1.0"
-navigation-compose = "2.7.7"
+navigation-compose = "2.8.0"
 datastore = "1.1.1"
 security-crypto = "1.1.0-alpha06"
 lifecycle = "2.8.0"
@@ -16,6 +16,7 @@ activity-compose = "1.9.0"
 coroutines = "1.8.1"
 gson = "2.11.0"
 google-services = "4.4.2"
+play-services-auth = "21.2.0"
 
 [libraries]
 compose-bom                 = { group = "androidx.compose",            name = "compose-bom",                  version.ref = "compose-bom" }
@@ -48,6 +49,7 @@ room-testing                = { group = "androidx.room",               name = "r
 workmanager-testing         = { group = "androidx.work",               name = "work-testing",                 version.ref = "workmanager" }
 coroutines-test             = { group = "org.jetbrains.kotlinx",       name = "kotlinx-coroutines-test",      version.ref = "coroutines" }
 androidx-test-runner        = { group = "androidx.test",               name = "runner",                       version = "1.5.2" }
+play-services-auth          = { group = "com.google.android.gms",      name = "play-services-auth",           version.ref = "play-services-auth" }
 
 [plugins]
 android-application = { id = "com.android.application",          version.ref = "agp" }

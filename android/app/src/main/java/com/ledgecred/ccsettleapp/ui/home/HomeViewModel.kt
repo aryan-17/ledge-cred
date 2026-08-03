@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ledgecred.ccsettleapp.data.db.AppDatabase
-import com.ledgecred.ccsettleapp.data.db.entity.SettleEvent
 import com.ledgecred.ccsettleapp.data.db.entity.Transaction
 import com.ledgecred.ccsettleapp.data.prefs.AppPreferences
 import com.ledgecred.ccsettleapp.data.repository.SettleRepository
@@ -26,9 +25,12 @@ data class HomeUiState(
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val db     = AppDatabase.getInstance(app)
-    private val prefs  = AppPreferences(app)
-    private val repo   = SettleRepository(db, prefs)
+    private val db    = AppDatabase.getInstance(app)
+    private val prefs = AppPreferences(app)
+    private val repo  = SettleRepository(db, prefs)
+
+    private val todayStart: Long
+        get() = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     val uiState: StateFlow<HomeUiState> = combine(
         repo.observePendingPaise(),
@@ -37,28 +39,26 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         db.transactionDao().observeRecent(20),
         db.settleEventDao().observeAll()
     ) { pending, cap, unreviewed, recent, events ->
-        val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val todaySpend   = recent.filter { it.type == "DEBIT" && it.txnTime > todayStart && it.deletedAt == null }
+                               .sumOf { it.amountPaise }
         val settledToday = events
             .filter { it.clearedAt != null && it.clearedAt >= todayStart }
             .sumOf { it.clearedAmountPaise ?: 0L }
-        val lastSettle = events
-            .filter { it.clearedAt != null }
-            .maxOfOrNull { it.clearedAt!! }
-        val activeId = events.firstOrNull { it.status == "AWAITING" }?.id
+        val lastSettle   = events.filter { it.clearedAt != null }.maxOfOrNull { it.clearedAt!! }
+        val activeId     = events.firstOrNull { it.status == "AWAITING" }?.id
 
         HomeUiState(
-            pendingPaise        = pending,
-            dailyCapPaise       = cap,
-            settledTodayPaise   = settledToday,
-            todaySpendPaise     = db.transactionDao().todaySpendPaise(todayStart),
-            lastSettleAt        = lastSettle,
-            unreviewedCount     = unreviewed,
-            recentTransactions  = recent,
-            activeEventId       = activeId
+            pendingPaise       = pending,
+            dailyCapPaise      = cap,
+            settledTodayPaise  = settledToday,
+            todaySpendPaise    = todaySpend,
+            lastSettleAt       = lastSettle,
+            unreviewedCount    = unreviewed,
+            recentTransactions = recent,
+            activeEventId      = activeId
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    /** Creates a new AWAITING settle event and returns its ID. */
     suspend fun createSettleEvent(requestedPaise: Long): String =
         repo.createSettleEvent(requestedPaise).id
 }

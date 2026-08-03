@@ -14,7 +14,6 @@ data class SettingsUiState(
     val digestHour: Int        = 22,
     val dailyCapPaise: Long    = 10_000_000L,
     val splitAboveCap: Boolean = true,
-    val geminiEnabled: Boolean = true,
     val batteryOptIgnored: Boolean = false
 )
 
@@ -23,17 +22,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = AppPreferences(app)
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        prefs.vpa, prefs.digestHour, prefs.dailyCapPaise,
-        prefs.splitAboveCap, prefs.geminiEnabled
-    ) { vpa, hour, cap, split, gemini ->
+        prefs.vpa, prefs.digestHour, prefs.dailyCapPaise, prefs.splitAboveCap
+    ) { vpa, hour, cap, split ->
         val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
         SettingsUiState(
-            vpa                = vpa,
-            digestHour         = hour,
-            dailyCapPaise      = cap,
-            splitAboveCap      = split,
-            geminiEnabled      = gemini,
-            batteryOptIgnored  = pm.isIgnoringBatteryOptimizations(app.packageName)
+            vpa               = vpa,
+            digestHour        = hour,
+            dailyCapPaise     = cap,
+            splitAboveCap     = split,
+            batteryOptIgnored = pm.isIgnoringBatteryOptimizations(app.packageName)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -41,5 +38,4 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setDigestHour(h: Int)           = viewModelScope.launch { prefs.setDigestHour(h) }
     fun setDailyCapPaise(p: Long)       = viewModelScope.launch { prefs.setDailyCapPaise(p) }
     fun setSplitAboveCap(s: Boolean)    = viewModelScope.launch { prefs.setSplitAboveCap(s) }
-    fun setGeminiEnabled(e: Boolean)    = viewModelScope.launch { prefs.setGeminiEnabled(e) }
 }

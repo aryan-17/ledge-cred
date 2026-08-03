@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CC Settle</string>
-    <!-- Replace with your Firebase Web Client ID from google-services.json -->
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+    <!-- From google-services.json → client_type 3 → client_id -->
+    <string name="default_web_client_id">PASTE_YOUR_WEB_CLIENT_ID_HERE</string>
 </resources>

@@ -93,19 +93,6 @@ fun SettingsScreen(
             }
         }
 
-        // PARSER section
-        item { SectionHeader("PARSER") }
-        item {
-            SettingsCard {
-                SettingsToggle("Nightly Gemini fallback", state.geminiEnabled) { vm.setGeminiEnabled(it) }
-                Divider(color = Divider, modifier = Modifier.padding(vertical = 12.dp))
-                TextButton(onClick = { /* trigger ClassifyWorker for all */ }) {
-                    Text("Re-parse all stored SMS →",
-                        style = AppTypography.bodyMedium, color = TextLabel)
-                }
-            }
-        }
-
         item { Spacer(Modifier.height(20.dp)) }
     }
 }

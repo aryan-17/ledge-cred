@@ -17,6 +17,7 @@ import com.ledgecred.ccsettleapp.ui.theme.*
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import com.ledgecred.ccsettleapp.data.db.AppDatabase
 import kotlinx.coroutines.flow.*
 

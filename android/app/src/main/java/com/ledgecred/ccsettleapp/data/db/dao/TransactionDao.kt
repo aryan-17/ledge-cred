@@ -25,15 +25,12 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): Transaction?
 
-    @Query("SELECT * FROM transactions WHERE type = 'UNPARSED' AND suggestedType IS NULL AND deletedAt IS NULL")
-    suspend fun getUnparsedWithoutSuggestion(): List<Transaction>
-
     @Query("""
         SELECT COALESCE(SUM(amountPaise), 0)
         FROM transactions
         WHERE type = 'DEBIT' AND txnTime > :dayStart AND deletedAt IS NULL
     """)
-    suspend fun todaySpendPaise(dayStart: Long): Long
+    fun observeTodaySpend(dayStart: Long): Flow<Long>
 
     @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY txnTime DESC LIMIT :limit")
     fun observeRecent(limit: Int = 20): Flow<List<Transaction>>

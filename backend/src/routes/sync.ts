@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { getPrisma } from '../lib/prisma'
+import log from '../lib/logger'
 import type {
   AppVariables,
   SyncRequest,
@@ -16,6 +17,7 @@ syncRoute.post('/', async (c) => {
   const prisma = getPrisma()
   const syncedAt = new Date()
   const since = body.lastSyncedAt ? new Date(body.lastSyncedAt) : new Date(0)
+  log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since }, 'sync start')
 
   // ponytail: sequential upserts — fine for personal-scale syncs; batch if throughput matters
   for (const tx of body.transactions) {

@@ -41,7 +41,6 @@ class SyncRepository(
         id = id, amountPaise = amountPaise, type = type, cardLast4 = cardLast4, bank = bank,
         txnTime = Instant.ofEpochMilli(txnTime).toString(),
         dedupeHash = dedupeHash, matchedSettleEventId = matchedSettleEventId,
-        suggestedType = suggestedType, suggestedConfidence = suggestedConfidence,
         reviewed = reviewed,
         updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
         deletedAt = deletedAt?.let { Instant.ofEpochMilli(it).toString() }
@@ -51,10 +50,10 @@ class SyncRepository(
     private fun SyncTransactionDto.toEntity() = Transaction(
         id = id, amountPaise = amountPaise, type = type, cardLast4 = cardLast4, bank = bank,
         txnTime = Instant.parse(txnTime).toEpochMilli(),
-        smsTime = Instant.parse(txnTime).toEpochMilli(), // smsTime unknown from server, use txnTime
-        rawSms = "",  // raw SMS never stored server-side
+        smsTime = Instant.parse(txnTime).toEpochMilli(),
+        rawSms = "",
         dedupeHash = dedupeHash, matchedSettleEventId = matchedSettleEventId,
-        suggestedType = suggestedType, suggestedConfidence = suggestedConfidence,
+        suggestedType = null, suggestedConfidence = null,
         reviewed = reviewed,
         updatedAt = Instant.parse(updatedAt).toEpochMilli(),
         deletedAt = deletedAt?.let { Instant.parse(it).toEpochMilli() }

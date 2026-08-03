@@ -16,7 +16,6 @@ class AppPreferences(private val context: Context) {
         val DIGEST_HOUR       = intPreferencesKey("digest_hour")         // default 22
         val DAILY_CAP_PAISE   = longPreferencesKey("daily_cap_paise")    // default ₹1L = 10_000_000
         val SPLIT_ABOVE_CAP   = booleanPreferencesKey("split_above_cap")
-        val GEMINI_ENABLED    = booleanPreferencesKey("gemini_enabled")
         val DISABLED_CARDS    = stringSetPreferencesKey("disabled_cards") // set of "BANK·last4"
     }
 
@@ -25,7 +24,6 @@ class AppPreferences(private val context: Context) {
     val digestHour: Flow<Int>      = context.dataStore.data.map { it[DIGEST_HOUR] ?: 22 }
     val dailyCapPaise: Flow<Long>  = context.dataStore.data.map { it[DAILY_CAP_PAISE] ?: 10_000_000L }
     val splitAboveCap: Flow<Boolean> = context.dataStore.data.map { it[SPLIT_ABOVE_CAP] ?: true }
-    val geminiEnabled: Flow<Boolean> = context.dataStore.data.map { it[GEMINI_ENABLED] ?: true }
 
     suspend fun setLastSyncedAt(millis: Long) =
         context.dataStore.edit { it[LAST_SYNCED_AT] = millis }
@@ -38,9 +36,6 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setDigestHour(hour: Int) =
         context.dataStore.edit { it[DIGEST_HOUR] = hour }
-
-    suspend fun setGeminiEnabled(enabled: Boolean) =
-        context.dataStore.edit { it[GEMINI_ENABLED] = enabled }
 
     suspend fun setSplitAboveCap(split: Boolean) =
         context.dataStore.edit { it[SPLIT_ABOVE_CAP] = split }

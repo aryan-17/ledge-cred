@@ -109,26 +109,6 @@ private fun ReviewCard(tx: Transaction) {
                 .padding(12.dp)
         )
 
-        // Gemini suggestion strip
-        if (tx.suggestedType != null) {
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Surface, RoundedCornerShape(8.dp))
-                    .padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Gemini suggests: ${tx.suggestedType} · confidence ${
-                    "%.0f".format((tx.suggestedConfidence ?: 0f) * 100)
-                }%",
-                    style = AppTypography.bodySmall, color = Blue, modifier = Modifier.weight(1f))
-                TextButton(
-                    onClick = {},
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                ) { Text("Accept", color = Blue, fontFamily = InstrumentSans, fontSize = 12.sp) }
-            }
-        }
 
         Spacer(Modifier.height(12.dp))
         Text(formatIndianRupees(tx.amountPaise),
