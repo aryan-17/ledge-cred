@@ -2,9 +2,8 @@ import pino from 'pino'
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
-  transport: (process.env.NODE_ENV === 'production' || process.env.RENDER)
-    ? undefined                          // plain JSON → Render/Railway captures it
-    : {
+  transport: process.stdout.isTTY
+    ? {
         target: 'pino-pretty',
         options: {
           colorize: true,
@@ -12,6 +11,7 @@ const logger = pino({
           ignore: 'pid,hostname'
         }
       }
+    : undefined   // plain JSON when stdout is not a TTY (Render, CI, pipes)
 })
 
 export default logger
