@@ -7,7 +7,7 @@ object SmsParser {
         RegexOption.IGNORE_CASE
     )
     private val CARD_LAST4_REGEX = Regex(
-        """(?:XX|x{2,4}|ending\s*)(\d{4})""",
+        """(?:XX|x{2,4}|ending\s*|[Cc]ard\s+(?:no\.?\s*)?)(\d{4})""",
         RegexOption.IGNORE_CASE
     )
 
@@ -16,8 +16,8 @@ object SmsParser {
     private val DECLINED_KEYWORDS = listOf("declined", "failed", "unsuccessful")
     private val STATEMENT_KEYWORDS = listOf("statement", "minimum amount due", "min. amount due", "payment due")
     private val HOLD_KEYWORDS     = listOf("hold", "authorization hold", "pre-auth", "pre auth")
-    private val CREDIT_KEYWORDS   = listOf("credited", "credit", "refund", "cashback", "reversal")
-    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "purchase")
+    private val CREDIT_KEYWORDS   = listOf("credited", "refund", "cashback", "reversal", "money back")
+    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "purchase", "payment of", "paid")
     private val CARD_KEYWORDS     = listOf("card", "credit card", "debit card", "xx")
 
     private val BANK_SENDER_MAP = mapOf(
@@ -28,7 +28,8 @@ object SmsParser {
         "KOTAKB" to "Kotak",   "KOTAKN" to "Kotak",
         "YESBNK" to "Yes Bank","IDFCBN" to "IDFC",
         "INDBNK" to "IndusInd","IDFCCD" to "IDFC",
-        "PNBSMS" to "PNB",     "BOIIND" to "BOI"
+        "PNBSMS" to "PNB",     "BOIIND" to "BOI",
+        "SLICEIT" to "Slice",  "SLICEPA" to "Slice"
     )
 
     fun classify(sms: String, sender: String): ParsedSms {
@@ -47,11 +48,12 @@ object SmsParser {
         val isDebit  = DEBIT_KEYWORDS.any  { lower.contains(it) }
         val isCard   = CARD_KEYWORDS.any   { lower.contains(it) }
 
+        // Debit checked first — "spent/debited" wins even if "credit card" appears in the text
+        if (isDebit && amount != null) return ParsedSms(TransactionType.DEBIT, amount, cardLast4, bank)
         if (isCredit && amount != null) {
             val type = if (isCard) TransactionType.REFUND else TransactionType.SELF_TRANSFER
             return ParsedSms(type, amount, cardLast4, bank)
         }
-        if (isDebit && amount != null) return ParsedSms(TransactionType.DEBIT, amount, cardLast4, bank)
         return ParsedSms(TransactionType.UNPARSED, amount, cardLast4, bank)
     }
 

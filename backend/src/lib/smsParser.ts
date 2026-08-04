@@ -2,14 +2,15 @@
 
 const AMOUNT_REGEX = /(?:INR|Rs\.?|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i
 
-const CARD_LAST4_REGEX = /(?:XX|x{2,4}|ending\s*)(\d{4})/i
+const CARD_LAST4_REGEX = /(?:XX|x{2,4}|ending\s*|[Cc]ard\s+(?:no\.?\s*)?)(\d{4})/i
 
 const OTP_KEYWORDS      = ['otp', 'one time password', 'one-time', 'do not share']
 const DECLINED_KEYWORDS = ['declined', 'failed', 'unsuccessful']
 const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due', 'payment due']
 const HOLD_KEYWORDS     = ['hold', 'authorization hold', 'pre-auth', 'pre auth']
-const CREDIT_KEYWORDS   = ['credited', 'credit', 'refund', 'cashback', 'reversal']
-const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'purchase']
+// 'credited' not 'credit' — avoids matching "credit card" as a credit transaction
+const CREDIT_KEYWORDS   = ['credited', 'refund', 'cashback', 'reversal', 'money back']
+const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'purchase', 'payment of', 'paid']
 const CARD_KEYWORDS     = ['card', 'credit card', 'debit card', 'xx']
 
 const BANK_SENDER_MAP: Record<string, string> = {
@@ -21,7 +22,8 @@ const BANK_SENDER_MAP: Record<string, string> = {
   YESBNK: 'Yes Bank', IDFCBN: 'IDFC',
   INDBNK: 'IndusInd', IDFCCD: 'IDFC',
   PNBSMS: 'PNB',
-  BOIIND: 'BOI'
+  BOIIND: 'BOI',
+  SLICEIT: 'Slice', SLICEPA: 'Slice'
 }
 
 export type TransactionType =
@@ -52,11 +54,12 @@ export function parseSms(sender: string, body: string): ParsedSms {
   const isDebit  = match(DEBIT_KEYWORDS)
   const isCard   = match(CARD_KEYWORDS)
 
-  if (isCredit && amount !== null) {
-    return { type: isCard ? 'REFUND' : 'SELF_TRANSFER', amountPaise: amount, cardLast4, bank }
-  }
+  // Debit checked first — "spent/debited" wins even if "credit card" appears in the text
   if (isDebit && amount !== null) {
     return { type: 'DEBIT', amountPaise: amount, cardLast4, bank }
+  }
+  if (isCredit && amount !== null) {
+    return { type: isCard ? 'REFUND' : 'SELF_TRANSFER', amountPaise: amount, cardLast4, bank }
   }
   return { type: 'UNPARSED', amountPaise: amount, cardLast4, bank }
 }

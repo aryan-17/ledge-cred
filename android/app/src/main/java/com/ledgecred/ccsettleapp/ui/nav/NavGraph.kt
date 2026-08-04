@@ -80,6 +80,15 @@ fun NavGraph(
 
         composable(Screen.Review.route)   { ReviewScreen(onBack = { navController.popBackStack() }) }
         composable(Screen.History.route)  { HistoryScreen(onBack = { navController.popBackStack() }) }
-        composable(Screen.Settings.route) { SettingsScreen(onBack = { navController.popBackStack() }) }
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
     }
 }

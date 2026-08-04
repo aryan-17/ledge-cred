@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.PowerManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.ledgecred.ccsettleapp.data.prefs.AppPreferences
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -38,4 +39,5 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setDigestHour(h: Int)           = viewModelScope.launch { prefs.setDigestHour(h) }
     fun setDailyCapPaise(p: Long)       = viewModelScope.launch { prefs.setDailyCapPaise(p) }
     fun setSplitAboveCap(s: Boolean)    = viewModelScope.launch { prefs.setSplitAboveCap(s) }
+    fun logout() { FirebaseAuth.getInstance().signOut() }
 }

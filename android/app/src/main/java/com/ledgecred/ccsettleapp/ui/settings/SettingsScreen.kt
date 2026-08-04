@@ -22,7 +22,8 @@ import com.ledgecred.ccsettleapp.ui.theme.*
 @Composable
 fun SettingsScreen(
     vm: SettingsViewModel = viewModel(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: () -> Unit = onBack
 ) {
     val state   = vm.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
@@ -90,6 +91,17 @@ fun SettingsScreen(
                 Divider(color = Divider, modifier = Modifier.padding(vertical = 12.dp))
                 // Split above cap toggle
                 SettingsToggle("Split above daily cap", state.splitAboveCap) { vm.setSplitAboveCap(it) }
+            }
+        }
+
+        item {
+            TextButton(
+                onClick = { vm.logout(); onLogout() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sign out", color = Red,
+                    fontFamily = InstrumentSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp)
             }
         }
 

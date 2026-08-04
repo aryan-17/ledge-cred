@@ -10,7 +10,7 @@ class AuthInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = runBlocking {
             FirebaseAuth.getInstance().currentUser
-                ?.getIdToken(false)?.await()?.token
+                ?.getIdToken(true)?.await()?.token  // force refresh — ensures valid token after sign-in
         }
         val request = chain.request().newBuilder()
             .apply { if (token != null) header("Authorization", "Bearer $token") }
