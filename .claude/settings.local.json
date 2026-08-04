@@ -40,7 +40,12 @@
       "Bash(JAVA_HOME=/Users/ctme/Library/Java/JavaVirtualMachines/corretto-17.0.12/Contents/Home ./gradlew :app:test)",
       "Bash(npm uninstall:*)",
       "Bash(git checkout:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(node dist/index.js)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(kill %1)",
+      "Bash(curl:*)",
+      "Bash(JAVA_HOME=/Users/ctme/Library/Java/JavaVirtualMachines/corretto-17.0.12/Contents/Home ./gradlew assembleDebug)"
     ]
   }
 }

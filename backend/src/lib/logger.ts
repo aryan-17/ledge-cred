@@ -2,8 +2,8 @@ import pino from 'pino'
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
-  transport: process.env.NODE_ENV === 'production'
-    ? undefined                          // plain JSON → Railway captures it
+  transport: (process.env.NODE_ENV === 'production' || process.env.RENDER)
+    ? undefined                          // plain JSON → Render/Railway captures it
     : {
         target: 'pino-pretty',
         options: {

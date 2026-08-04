@@ -18,8 +18,7 @@ android {
         versionName   = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Change to your Railway URL before release
-        buildConfigField("String", "API_BASE_URL", "\"http://10.10.4.250:3000/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://ledge-cred.onrender.com/\"")
     }
 
     buildFeatures {
