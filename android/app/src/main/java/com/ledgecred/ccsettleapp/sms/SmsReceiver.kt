@@ -26,8 +26,11 @@ class SmsReceiver : BroadcastReceiver() {
 
             val parsed = SmsParser.classify(body, sender)
 
-            // Discard OTP and DECLINED — never store
-            if (parsed.type == TransactionType.OTP || parsed.type == TransactionType.DECLINED) return@forEach
+            // Discard OTP, DECLINED, STATEMENT — never store
+            if (parsed.type in listOf(TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT)) return@forEach
+
+            // Discard if no amount and not UNPARSED (nothing useful to show)
+            if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) return@forEach
 
             val hash = SmsParser.dedupeHash(
                 bank          = parsed.bank ?: sender,
