@@ -124,7 +124,11 @@ fun SettleScreen(
             onClick = {
                 scope.launch {
                     vm.onPayTapped()
-                    try { context.startActivity(vm.buildUpiIntent()) } catch (_: ActivityNotFoundException) {}
+                    try {
+                        context.startActivity(
+                            Intent.createChooser(vm.buildUpiIntent(), "Pay with UPI")
+                        )
+                    } catch (_: ActivityNotFoundException) {}
                     onPaid()
                 }
             },

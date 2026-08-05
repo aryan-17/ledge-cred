@@ -19,12 +19,10 @@ class SettleRepository(
         db.transactionDao().observeAll(),
         db.settleEventDao().observeAll()
     ) { txs, events ->
-        val debits  = txs.filter { it.type == "DEBIT"  && it.deletedAt == null }.sumOf { it.amountPaise }
-        val refunds = txs.filter { it.type == "REFUND" && it.deletedAt == null }.sumOf { it.amountPaise }
-        val cleared = events
-            .filter { it.status in listOf("CLEARED", "PARTIAL", "MANUAL_MATCH") && it.deletedAt == null }
-            .sumOf { it.clearedAmountPaise ?: it.requestedAmountPaise }
-        maxOf(0L, debits - refunds - cleared)
+        val debits        = txs.filter { it.type == "DEBIT"         && it.deletedAt == null }.sumOf { it.amountPaise }
+        val refunds       = txs.filter { it.type == "REFUND"        && it.deletedAt == null }.sumOf { it.amountPaise }
+        val selfTransfers = txs.filter { it.type == "SELF_TRANSFER" && it.deletedAt == null }.sumOf { it.amountPaise }
+        maxOf(0L, debits - refunds - selfTransfers)
     }
 
     suspend fun createSettleEvent(requestedPaise: Long): SettleEvent {

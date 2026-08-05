@@ -56,8 +56,18 @@ class SettleViewModel(app: Application, saved: SavedStateHandle) : AndroidViewMo
         val event  = state.event ?: error("No active event")
         val ref    = event.parentRef + (event.suffix ?: "")
         val amount = "%.2f".format(state.draftPaise / 100.0)
-        val uri    = "upi://pay?pa=${state.vpa}&pn=Self&am=$amount&cu=INR&tn=CC+settle&tr=$ref"
-        return Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+        val uri = android.net.Uri.Builder()
+            .scheme("upi")
+            .authority("pay")
+            .appendQueryParameter("pa", state.vpa.trim())
+            .appendQueryParameter("pn", "Self")
+            .appendQueryParameter("am", amount)
+            .appendQueryParameter("cu", "INR")
+            .appendQueryParameter("tn", "CC settle")
+            .appendQueryParameter("tr", ref)
+            .build()
+        android.util.Log.d("UPI_INTENT", uri.toString())
+        return Intent(Intent.ACTION_VIEW, uri)
     }
 
     fun onPayTapped() = viewModelScope.launch {

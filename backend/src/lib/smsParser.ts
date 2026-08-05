@@ -9,9 +9,10 @@ const DECLINED_KEYWORDS = ['declined', 'failed', 'unsuccessful']
 const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due', 'payment due']
 const HOLD_KEYWORDS     = ['hold', 'authorization hold', 'pre-auth', 'pre auth']
 // 'credited' not 'credit' — avoids matching "credit card" as a credit transaction
-const CREDIT_KEYWORDS   = ['credited', 'refund', 'cashback', 'reversal', 'money back']
+const CREDIT_KEYWORDS   = ['credited', 'received', 'refund', 'cashback', 'reversal', 'money back']
 const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'purchase', 'payment of', 'paid']
-const CARD_KEYWORDS     = ['card', 'credit card', 'debit card', 'xx']
+// Only explicit card references count — 'xx' alone also matches account numbers
+const CARD_KEYWORDS     = ['credit card', 'debit card']
 
 const BANK_SENDER_MAP: Record<string, string> = {
   HDFCBK: 'HDFC', HDFCBN: 'HDFC',
