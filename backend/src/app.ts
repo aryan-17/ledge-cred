@@ -9,9 +9,10 @@ import log from './lib/logger'
 
 const app = new Hono()
 
-// HTTP request log
+// HTTP request log — strip ANSI color codes Hono adds to message
+const stripAnsi = (s: string) => s.replace(/\u001b\[\d+m/g, '')
 app.use('*', honoLogger((message, ...rest) => {
-  log.info({ msg: message, ...rest })
+  log.info({ msg: stripAnsi(message), ...rest })
 }))
 
 // Health check — no auth required
