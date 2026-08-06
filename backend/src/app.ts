@@ -6,6 +6,7 @@ import { usersRoute } from './routes/users'
 import { syncRoute } from './routes/sync'
 import { fcmRoute } from './routes/fcm'
 import { transactionsRoute } from './routes/transactions'
+import { cardsRoute } from './routes/cards'
 import log from './lib/logger'
 
 const app = new Hono()
@@ -34,6 +35,7 @@ app.route('/users', usersRoute)
 app.route('/sync', syncRoute)
 app.route('/fcm', fcmRoute)
 app.route('/transactions', transactionsRoute)
+app.route('/cards', cardsRoute)
 
 app.onError((err, c) => {
   log.error({ err: err.message, path: c.req.path, method: c.req.method }, 'unhandled error')

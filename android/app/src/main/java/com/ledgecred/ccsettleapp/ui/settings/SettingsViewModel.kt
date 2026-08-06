@@ -6,20 +6,21 @@ import android.os.PowerManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.ledgecred.ccsettleapp.data.api.ApiClient
+import com.ledgecred.ccsettleapp.data.api.dto.AddCardRequest
 import com.ledgecred.ccsettleapp.data.db.AppDatabase
-import com.ledgecred.ccsettleapp.data.db.entity.CardInfo
+import com.ledgecred.ccsettleapp.data.db.entity.UserCard
 import com.ledgecred.ccsettleapp.data.prefs.AppPreferences
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class SettingsUiState(
     val vpa: String                = "",
     val digestHour: Int            = 22,
-    val dailyCapPaise: Long        = 10_000_000L,
     val splitAboveCap: Boolean     = true,
     val batteryOptIgnored: Boolean = false,
-    val detectedCards: List<CardInfo> = emptyList(),
-    val trackedCards: Set<String>  = emptySet()   // empty = track all cards
+    val cards: List<UserCard>      = emptyList()
 )
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
@@ -28,42 +29,42 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val db    = AppDatabase.getInstance(app)
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        prefs.vpa, prefs.digestHour, prefs.dailyCapPaise,
-        prefs.splitAboveCap, prefs.trackedCards,
-        db.transactionDao().observeDistinctCards()
-    ) { args ->
-        @Suppress("UNCHECKED_CAST")
-        val vpa     = args[0] as String
-        val hour    = args[1] as Int
-        val cap     = args[2] as Long
-        val split   = args[3] as Boolean
-        val tracked = args[4] as Set<String>
-        val cards   = args[5] as List<CardInfo>
+        prefs.vpa, prefs.splitAboveCap,
+        db.userCardDao().observeAll()
+    ) { vpa, split, cards ->
         val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
         SettingsUiState(
             vpa               = vpa,
-            digestHour        = hour,
-            dailyCapPaise     = cap,
             splitAboveCap     = split,
             batteryOptIgnored = pm.isIgnoringBatteryOptimizations(app.packageName),
-            detectedCards     = cards,
-            trackedCards      = tracked
+            cards             = cards
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setVpa(v: String)            = viewModelScope.launch { prefs.setVpa(v) }
-    fun setDigestHour(h: Int)        = viewModelScope.launch { prefs.setDigestHour(h) }
-    fun setDailyCapPaise(p: Long)    = viewModelScope.launch { prefs.setDailyCapPaise(p) }
     fun setSplitAboveCap(s: Boolean) = viewModelScope.launch { prefs.setSplitAboveCap(s) }
     fun logout()                     { FirebaseAuth.getInstance().signOut() }
 
-    fun toggleCard(cardKey: String, enabled: Boolean) = viewModelScope.launch {
-        val current = prefs.trackedCards.first().toMutableSet()
-        if (enabled) current.add(cardKey) else current.remove(cardKey)
-        prefs.setTrackedCards(current)
+    fun addCard(bank: String, last4: String, nickname: String?) = viewModelScope.launch {
+        val id = UUID.randomUUID().toString()
+        val card = UserCard(id = id, bank = bank.trim(), last4 = last4.trim(), nickname = nickname?.trim()?.ifBlank { null })
+        db.userCardDao().upsert(card)
+        try { ApiClient.get().addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname)) } catch (_: Exception) {}
     }
 
-    fun trackAllCards() = viewModelScope.launch {
-        prefs.setTrackedCards(emptySet())
+    fun removeCard(card: UserCard) = viewModelScope.launch {
+        db.userCardDao().deleteById(card.id)
+        try { ApiClient.get().deleteCard(card.id) } catch (_: Exception) {}
+    }
+
+    // Fetch cards from backend and sync to Room (called on app start)
+    fun syncCards() = viewModelScope.launch {
+        try {
+            val remote = ApiClient.get().getCards().cards
+            db.userCardDao().deleteAll()
+            remote.forEach {
+                db.userCardDao().upsert(UserCard(id = it.id, bank = it.bank, last4 = it.last4, nickname = it.nickname))
+            }
+        } catch (_: Exception) {}
     }
 }

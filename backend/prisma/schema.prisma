@@ -13,6 +13,19 @@ model User {
   createdAt    DateTime      @default(now())
   transactions Transaction[]
   settleEvents SettleEvent[]
+  cards        UserCard[]
+}
+
+model UserCard {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [uid])
+  bank      String
+  last4     String
+  nickname  String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, bank, last4])
 }
 
 model Transaction {

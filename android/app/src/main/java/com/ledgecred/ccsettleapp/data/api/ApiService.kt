@@ -19,4 +19,13 @@ interface ApiService {
 
     @DELETE("transactions/{id}")
     suspend fun deleteTransaction(@Path("id") id: String): Response<Unit>
+
+    @GET("cards")
+    suspend fun getCards(): CardsResponse
+
+    @POST("cards")
+    suspend fun addCard(@Body body: AddCardRequest): Response<Unit>
+
+    @DELETE("cards/{id}")
+    suspend fun deleteCard(@Path("id") id: String): Response<Unit>
 }
