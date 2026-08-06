@@ -41,6 +41,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
+    init { syncCards() }
+
     fun setVpa(v: String)            = viewModelScope.launch { prefs.setVpa(v) }
     fun setSplitAboveCap(s: Boolean) = viewModelScope.launch { prefs.setSplitAboveCap(s) }
     fun logout()                     { FirebaseAuth.getInstance().signOut() }
@@ -57,11 +59,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         try { ApiClient.get().deleteCard(card.id) } catch (_: Exception) {}
     }
 
-    // Fetch cards from backend and sync to Room (called on app start)
+    // Fetch from backend only when Room is empty (first login / fresh install)
     fun syncCards() = viewModelScope.launch {
         try {
+            val local = db.userCardDao().getAll()
+            if (local.isNotEmpty()) return@launch   // Room has data — use cache
             val remote = ApiClient.get().getCards().cards
-            db.userCardDao().deleteAll()
             remote.forEach {
                 db.userCardDao().upsert(UserCard(id = it.id, bank = it.bank, last4 = it.last4, nickname = it.nickname))
             }

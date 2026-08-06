@@ -47,7 +47,9 @@
       "Bash(curl:*)",
       "Bash(JAVA_HOME=/Users/ctme/Library/Java/JavaVirtualMachines/corretto-17.0.12/Contents/Home ./gradlew assembleDebug)",
       "Bash(adb install:*)",
-      "Bash(JAVA_HOME=/Users/ctme/Library/Java/JavaVirtualMachines/corretto-17.0.12/Contents/Home ./android/gradlew -p android assembleDebug)"
+      "Bash(JAVA_HOME=/Users/ctme/Library/Java/JavaVirtualMachines/corretto-17.0.12/Contents/Home ./android/gradlew -p android assembleDebug)",
+      "Bash(adb devices:*)",
+      "Bash(/Users/ctme/Library/Android/sdk/platform-tools/adb devices:*)"
     ]
   }
 }
