@@ -94,6 +94,43 @@ fun SettingsScreen(
             }
         }
 
+        // CARDS section
+        if (state.detectedCards.isNotEmpty()) {
+            item { SectionHeader("TRACKED CARDS") }
+            item {
+                SettingsCard {
+                    val allTracked = state.trackedCards.isEmpty()
+                    SettingsToggle(
+                        label = "All cards",
+                        checked = allTracked,
+                        onCheckedChange = { if (it) vm.trackAllCards() }
+                    )
+                    if (!allTracked || state.detectedCards.isNotEmpty()) {
+                        state.detectedCards.forEachIndexed { i, card ->
+                            Divider(color = Divider, modifier = Modifier.padding(vertical = 8.dp))
+                            SettingsToggle(
+                                label = card.display,
+                                checked = allTracked || card.key in state.trackedCards,
+                                onCheckedChange = { enabled ->
+                                    if (allTracked) {
+                                        // Switch from "all" to per-card: enable all except this toggle
+                                        val allKeys = state.detectedCards.map { it.key }.toMutableSet()
+                                        if (!enabled) allKeys.remove(card.key) else allKeys.add(card.key)
+                                        vm.toggleCard(card.key, enabled)
+                                        // Also add all other cards to tracked set
+                                        state.detectedCards.filter { it.key != card.key }
+                                            .forEach { vm.toggleCard(it.key, true) }
+                                    } else {
+                                        vm.toggleCard(card.key, enabled)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             TextButton(
                 onClick = { vm.logout(); onLogout() },

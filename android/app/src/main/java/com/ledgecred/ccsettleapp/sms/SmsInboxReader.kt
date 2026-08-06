@@ -38,6 +38,9 @@ object SmsInboxReader {
 
                 val parsed = SmsParser.classify(body, sender)
 
+                // Skip if sender not recognized as a bank — avoids mutual fund, promo SMS etc.
+                if (parsed.bank == sender) continue  // bank == raw sender means no match in BANK_SENDER_MAP
+
                 // Discard non-financial SMS
                 if (parsed.type in listOf(
                         TransactionType.OTP,

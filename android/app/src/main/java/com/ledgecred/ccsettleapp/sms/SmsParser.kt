@@ -17,7 +17,7 @@ object SmsParser {
     private val STATEMENT_KEYWORDS = listOf("statement", "minimum amount due", "min. amount due", "payment due")
     private val HOLD_KEYWORDS     = listOf("hold", "authorization hold", "pre-auth", "pre auth")
     private val CREDIT_KEYWORDS   = listOf("credited", "received", "refund", "cashback", "reversal", "money back")
-    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "purchase", "payment of", "paid")
+    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "payment of", "paid")
     // Only explicit card references — 'xx' alone also matches account numbers
     private val CARD_KEYWORDS     = listOf("credit card", "debit card")
 

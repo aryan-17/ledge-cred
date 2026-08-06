@@ -10,7 +10,7 @@ const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due'
 const HOLD_KEYWORDS     = ['hold', 'authorization hold', 'pre-auth', 'pre auth']
 // 'credited' not 'credit' — avoids matching "credit card" as a credit transaction
 const CREDIT_KEYWORDS   = ['credited', 'received', 'refund', 'cashback', 'reversal', 'money back']
-const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'purchase', 'payment of', 'paid']
+const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'payment of', 'paid']
 // Only explicit card references count — 'xx' alone also matches account numbers
 const CARD_KEYWORDS     = ['credit card', 'debit card']
 

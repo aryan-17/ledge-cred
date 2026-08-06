@@ -17,9 +17,14 @@ class SettleRepository(
     /** pendingPaise = Σ DEBIT − Σ REFUND − Σ matched SELF_TRANSFER. Derived, never stored. */
     fun observePendingPaise(): Flow<Long> = combine(
         db.transactionDao().observeAll(),
-        db.settleEventDao().observeAll()
-    ) { txs, events ->
-        val debits        = txs.filter { it.type == "DEBIT"         && it.deletedAt == null }.sumOf { it.amountPaise }
+        db.settleEventDao().observeAll(),
+        prefs.trackedCards
+    ) { txs, events, tracked ->
+        val debits = txs.filter { tx ->
+            tx.type == "DEBIT" && tx.deletedAt == null &&
+            // If tracked cards configured, only count matching cards; else count all
+            (tracked.isEmpty() || (tx.cardLast4 != null && "${tx.bank}:${tx.cardLast4}" in tracked))
+        }.sumOf { it.amountPaise }
         val refunds       = txs.filter { it.type == "REFUND"        && it.deletedAt == null }.sumOf { it.amountPaise }
         val selfTransfers = txs.filter { it.type == "SELF_TRANSFER" && it.deletedAt == null }.sumOf { it.amountPaise }
         maxOf(0L, debits - refunds - selfTransfers)

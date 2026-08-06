@@ -1,6 +1,7 @@
 package com.ledgecred.ccsettleapp.data.db.dao
 
 import androidx.room.*
+import com.ledgecred.ccsettleapp.data.db.entity.CardInfo
 import com.ledgecred.ccsettleapp.data.db.entity.Transaction
 import kotlinx.coroutines.flow.Flow
 
@@ -34,6 +35,9 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY txnTime DESC LIMIT :limit")
     fun observeRecent(limit: Int = 20): Flow<List<Transaction>>
+
+    @Query("SELECT DISTINCT bank, cardLast4 FROM transactions WHERE cardLast4 IS NOT NULL AND type = 'DEBIT' AND deletedAt IS NULL")
+    fun observeDistinctCards(): Flow<List<CardInfo>>
 
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: String)

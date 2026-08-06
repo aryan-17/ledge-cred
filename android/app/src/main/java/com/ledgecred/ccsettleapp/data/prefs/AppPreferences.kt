@@ -16,14 +16,16 @@ class AppPreferences(private val context: Context) {
         val DIGEST_HOUR       = intPreferencesKey("digest_hour")         // default 22
         val DAILY_CAP_PAISE   = longPreferencesKey("daily_cap_paise")    // default ₹1L = 10_000_000
         val SPLIT_ABOVE_CAP   = booleanPreferencesKey("split_above_cap")
-        val DISABLED_CARDS    = stringSetPreferencesKey("disabled_cards") // set of "BANK·last4"
+        val DISABLED_CARDS    = stringSetPreferencesKey("disabled_cards")
+        val TRACKED_CARDS     = stringSetPreferencesKey("tracked_cards")  // set of "BANK:last4", empty = track all
     }
 
     val lastSyncedAt: Flow<Long?>  = context.dataStore.data.map { it[LAST_SYNCED_AT] }
     val vpa: Flow<String>          = context.dataStore.data.map { it[VPA] ?: "" }
     val digestHour: Flow<Int>      = context.dataStore.data.map { it[DIGEST_HOUR] ?: 22 }
     val dailyCapPaise: Flow<Long>  = context.dataStore.data.map { it[DAILY_CAP_PAISE] ?: 10_000_000L }
-    val splitAboveCap: Flow<Boolean> = context.dataStore.data.map { it[SPLIT_ABOVE_CAP] ?: true }
+    val splitAboveCap: Flow<Boolean>   = context.dataStore.data.map { it[SPLIT_ABOVE_CAP] ?: true }
+    val trackedCards: Flow<Set<String>> = context.dataStore.data.map { it[TRACKED_CARDS] ?: emptySet() }
 
     suspend fun setLastSyncedAt(millis: Long) =
         context.dataStore.edit { it[LAST_SYNCED_AT] = millis }
@@ -39,4 +41,7 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setSplitAboveCap(split: Boolean) =
         context.dataStore.edit { it[SPLIT_ABOVE_CAP] = split }
+
+    suspend fun setTrackedCards(cards: Set<String>) =
+        context.dataStore.edit { it[TRACKED_CARDS] = cards }
 }
