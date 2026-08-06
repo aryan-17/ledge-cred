@@ -1,6 +1,7 @@
 package com.ledgecred.ccsettleapp.ui.settle
 
 import android.content.ActivityNotFoundException
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

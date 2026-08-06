@@ -16,4 +16,7 @@ interface ApiService {
 
     @POST("fcm/notify")
     suspend fun sendNotification(@Body body: FcmNotifyRequest): Response<Unit>
+
+    @DELETE("transactions/{id}")
+    suspend fun deleteTransaction(@Path("id") id: String): Response<Unit>
 }

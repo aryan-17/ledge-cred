@@ -36,7 +36,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         repo.observePendingPaise(),
         prefs.dailyCapPaise,
         db.transactionDao().observeUnreviewedCount(),
-        db.transactionDao().observeRecent(20),
+        db.transactionDao().observeRecent(5),
         db.settleEventDao().observeAll()
     ) { pending, cap, unreviewed, recent, events ->
         val todaySpend   = recent.filter { it.type == "DEBIT" && it.txnTime > todayStart && it.deletedAt == null }

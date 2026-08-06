@@ -5,6 +5,7 @@ import { parseSms } from './lib/smsParser'
 import { usersRoute } from './routes/users'
 import { syncRoute } from './routes/sync'
 import { fcmRoute } from './routes/fcm'
+import { transactionsRoute } from './routes/transactions'
 import log from './lib/logger'
 
 const app = new Hono()
@@ -32,6 +33,7 @@ app.use('*', authMiddleware)
 app.route('/users', usersRoute)
 app.route('/sync', syncRoute)
 app.route('/fcm', fcmRoute)
+app.route('/transactions', transactionsRoute)
 
 app.onError((err, c) => {
   log.error({ err: err.message, path: c.req.path, method: c.req.method }, 'unhandled error')

@@ -13,6 +13,7 @@ import com.ledgecred.ccsettleapp.ui.review.ReviewScreen
 import com.ledgecred.ccsettleapp.ui.settle.PartialReceiptScreen
 import com.ledgecred.ccsettleapp.ui.settle.SettleScreen
 import com.ledgecred.ccsettleapp.ui.settings.SettingsScreen
+import com.ledgecred.ccsettleapp.ui.transactions.TransactionsScreen
 import com.ledgecred.ccsettleapp.ui.waiting.WaitingScreen
 
 @Composable
@@ -32,10 +33,11 @@ fun NavGraph(
 
         composable(Screen.Home.route) {
             HomeScreen(
-                onSettleTap     = { eventId -> navController.navigate(Screen.Settle.route(eventId)) },
-                onReviewTap     = { navController.navigate(Screen.Review.route) },
-                onHistoryTap    = { navController.navigate(Screen.History.route) },
-                onSettingsTap   = { navController.navigate(Screen.Settings.route) }
+                onSettleTap   = { eventId -> navController.navigate(Screen.Settle.route(eventId)) },
+                onReviewTap   = { navController.navigate(Screen.Review.route) },
+                onHistoryTap  = { navController.navigate(Screen.History.route) },
+                onSettingsTap = { navController.navigate(Screen.Settings.route) },
+                onSeeAllTap   = { navController.navigate(Screen.Transactions.route) }
             )
         }
 
@@ -78,6 +80,7 @@ fun NavGraph(
             )
         }
 
+        composable(Screen.Transactions.route) { TransactionsScreen(onBack = { navController.popBackStack() }) }
         composable(Screen.Review.route)   { ReviewScreen(onBack = { navController.popBackStack() }) }
         composable(Screen.History.route)  { HistoryScreen(onBack = { navController.popBackStack() }) }
         composable(Screen.Settings.route) {

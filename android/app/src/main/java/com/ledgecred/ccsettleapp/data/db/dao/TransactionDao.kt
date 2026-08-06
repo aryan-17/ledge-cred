@@ -35,6 +35,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY txnTime DESC LIMIT :limit")
     fun observeRecent(limit: Int = 20): Flow<List<Transaction>>
 
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(vararg tx: Transaction)
 }

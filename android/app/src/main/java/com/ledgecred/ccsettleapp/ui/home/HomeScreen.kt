@@ -32,7 +32,8 @@ fun HomeScreen(
     onSettleTap: (String) -> Unit,
     onReviewTap: () -> Unit,
     onHistoryTap: () -> Unit,
-    onSettingsTap: () -> Unit
+    onSettingsTap: () -> Unit,
+    onSeeAllTap: () -> Unit = {}
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -131,11 +132,11 @@ fun HomeScreen(
                         fontFamily = InstrumentSans, fontWeight = FontWeight.SemiBold,
                         fontSize = 13.5.sp, color = TextPrimary)
                     Text("SEE ALL", fontFamily = JetBrainsMono, fontSize = 10.sp,
-                        color = TextLabel, modifier = Modifier.clickable(onClick = onHistoryTap))
+                        color = TextLabel, modifier = Modifier.clickable(onClick = onSeeAllTap))
                 }
             }
 
-            items(state.recentTransactions.take(10)) { tx ->
+            items(state.recentTransactions) { tx ->
                 TransactionRow(tx)
             }
         }
