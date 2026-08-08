@@ -22,7 +22,7 @@ class SettleRepository(
     ) { txs, events, trackedCards ->
         val trackedKeys = trackedCards.map { it.key }.toSet()
         val debits = txs.filter { tx ->
-            tx.type == "DEBIT" && tx.deletedAt == null &&
+            tx.type == "DEBIT" && tx.deletedAt == null && tx.settledAt == null &&
             // If no cards configured, track all; else only track matching cards
             (trackedKeys.isEmpty() || (tx.cardLast4 != null && "${tx.bank}:${tx.cardLast4}" in trackedKeys))
         }.sumOf { it.amountPaise }

@@ -42,6 +42,7 @@ class SyncRepository(
         txnTime = Instant.ofEpochMilli(txnTime).toString(),
         dedupeHash = dedupeHash, matchedSettleEventId = matchedSettleEventId,
         reviewed = reviewed,
+        settledAt = settledAt?.let { Instant.ofEpochMilli(it).toString() },
         updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
         deletedAt = deletedAt?.let { Instant.ofEpochMilli(it).toString() }
         // rawSms and smsTime intentionally omitted — never synced
@@ -55,6 +56,7 @@ class SyncRepository(
         dedupeHash = dedupeHash, matchedSettleEventId = matchedSettleEventId,
         suggestedType = null, suggestedConfidence = null,
         reviewed = reviewed,
+        settledAt = settledAt?.let { Instant.parse(it).toEpochMilli() },
         updatedAt = Instant.parse(updatedAt).toEpochMilli(),
         deletedAt = deletedAt?.let { Instant.parse(it).toEpochMilli() }
     )

@@ -66,6 +66,7 @@ function mapTxToDb(tx: SyncTransaction, uid: string) {
     suggestedType: tx.suggestedType,
     suggestedConfidence: tx.suggestedConfidence,
     reviewed: tx.reviewed,
+    settledAt: tx.settledAt ? new Date(tx.settledAt) : null,
     updatedAt: new Date(tx.updatedAt),
     deletedAt: tx.deletedAt ? new Date(tx.deletedAt) : null
   }
@@ -84,6 +85,7 @@ function mapTxFromDb(tx: any): SyncTransaction {
     suggestedType: tx.suggestedType,
     suggestedConfidence: tx.suggestedConfidence,
     reviewed: tx.reviewed,
+    settledAt: tx.settledAt?.toISOString() ?? null,
     updatedAt: tx.updatedAt.toISOString(),
     deletedAt: tx.deletedAt?.toISOString() ?? null
   }

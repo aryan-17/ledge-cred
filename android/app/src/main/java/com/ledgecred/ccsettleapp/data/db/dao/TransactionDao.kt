@@ -42,6 +42,9 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("UPDATE transactions SET settledAt = :settledAt, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setSettledAt(id: String, settledAt: Long?, updatedAt: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(vararg tx: Transaction)
 }

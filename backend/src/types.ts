@@ -26,6 +26,7 @@ export interface SyncTransaction {
   suggestedType: TransactionType | null
   suggestedConfidence: number | null
   reviewed: boolean
+  settledAt: string | null  // ISO 8601 — manually marked as paid, no SMS involved
   updatedAt: string         // ISO 8601
   deletedAt: string | null  // ISO 8601
 }

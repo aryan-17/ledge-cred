@@ -42,6 +42,7 @@ model Transaction {
   suggestedType          String?
   suggestedConfidence    Float?
   reviewed               Boolean   @default(false)
+  settledAt              DateTime?
   updatedAt              DateTime  @default(now())
   deletedAt              DateTime?
 

@@ -25,4 +25,14 @@ class TransactionsViewModel(app: Application) : AndroidViewModel(app) {
             // best-effort — Room is already cleaned up
         }
     }
+
+    /** Manually marks a transaction as settled (paid). Purely a local ledger entry —
+     *  no UPI intent, no SMS matching. Propagates to the backend on the next periodic sync. */
+    fun settle(id: String) = viewModelScope.launch {
+        db.transactionDao().setSettledAt(id, System.currentTimeMillis(), System.currentTimeMillis())
+    }
+
+    fun unsettle(id: String) = viewModelScope.launch {
+        db.transactionDao().setSettledAt(id, null, System.currentTimeMillis())
+    }
 }

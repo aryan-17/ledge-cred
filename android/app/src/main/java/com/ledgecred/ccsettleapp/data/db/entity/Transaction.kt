@@ -18,6 +18,7 @@ data class Transaction(
     val suggestedType: String?,
     val suggestedConfidence: Float?,
     val reviewed: Boolean = false,
+    val settledAt: Long? = null,        // manually marked as paid — no SMS involved
     val updatedAt: Long = System.currentTimeMillis(),
     val deletedAt: Long? = null
 )

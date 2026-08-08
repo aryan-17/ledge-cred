@@ -10,6 +10,7 @@ data class SyncTransactionDto(
     val dedupeHash: String,
     val matchedSettleEventId: String?,
     val reviewed: Boolean,
+    val settledAt: String?,
     val updatedAt: String,
     val deletedAt: String?
 )

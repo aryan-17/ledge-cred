@@ -78,6 +78,7 @@ describe('POST /sync', () => {
       suggestedType: null,
       suggestedConfidence: null,
       reviewed: false,
+      settledAt: null,
       updatedAt: new Date('2026-08-01T10:00:01Z'),
       deletedAt: null
     }])
@@ -110,6 +111,7 @@ describe('POST /sync', () => {
       suggestedType: null,
       suggestedConfidence: null,
       reviewed: false,
+      settledAt: null,
       updatedAt: '2026-08-02T08:00:01Z',
       deletedAt: null
     }
@@ -126,5 +128,59 @@ describe('POST /sync', () => {
         create: expect.objectContaining({ userId: 'user-123', bank: 'ICICI' })
       })
     )
+  })
+
+  it('round-trips a manually-settled transaction (settledAt, no SMS involved)', async () => {
+    const settledAtIso = '2026-08-08T09:00:00.000Z'
+    const incoming: SyncTransaction = {
+      id: 'tx-manual-settle',
+      amountPaise: 120000,
+      type: 'DEBIT',
+      cardLast4: '4321',
+      bank: 'HDFC',
+      txnTime: '2026-08-02T08:00:00Z',
+      dedupeHash: 'hash-manual',
+      matchedSettleEventId: null,
+      suggestedType: null,
+      suggestedConfidence: null,
+      reviewed: false,
+      settledAt: settledAtIso,
+      updatedAt: '2026-08-08T09:00:00.001Z',
+      deletedAt: null
+    }
+
+    mockPrisma.transaction.findMany.mockResolvedValue([{
+      id: 'tx-manual-settle',
+      amountPaise: BigInt(120000),
+      type: 'DEBIT',
+      cardLast4: '4321',
+      bank: 'HDFC',
+      txnTime: new Date('2026-08-02T08:00:00Z'),
+      dedupeHash: 'hash-manual',
+      matchedSettleEventId: null,
+      suggestedType: null,
+      suggestedConfidence: null,
+      reviewed: false,
+      settledAt: new Date(settledAtIso),
+      updatedAt: new Date('2026-08-08T09:00:00.001Z'),
+      deletedAt: null
+    }])
+
+    const res = await app.request('/sync', {
+      method: 'POST',
+      headers: AUTH,
+      body: JSON.stringify({ ...emptyBody, transactions: [incoming] })
+    })
+
+    expect(mockPrisma.transaction.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'tx-manual-settle' },
+        create: expect.objectContaining({ settledAt: new Date(settledAtIso) })
+      })
+    )
+
+    const body = await res.json()
+    const tx: SyncTransaction = body.transactions[0]
+    expect(tx.settledAt).toBe(settledAtIso)
   })
 })

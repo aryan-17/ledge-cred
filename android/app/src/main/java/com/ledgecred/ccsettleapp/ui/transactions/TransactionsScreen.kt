@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,7 +64,12 @@ fun TransactionsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(transactions, key = { it.id }) { tx ->
-                TransactionItem(tx = tx, onDiscard = { vm.discard(tx.id) })
+                TransactionItem(
+                    tx = tx,
+                    onDiscard = { vm.discard(tx.id) },
+                    onSettle = { vm.settle(tx.id) },
+                    onUnsettle = { vm.unsettle(tx.id) }
+                )
             }
             item { Spacer(Modifier.height(20.dp)) }
         }
@@ -70,14 +77,21 @@ fun TransactionsScreen(
 }
 
 @Composable
-private fun TransactionItem(tx: Transaction, onDiscard: () -> Unit) {
+private fun TransactionItem(
+    tx: Transaction,
+    onDiscard: () -> Unit,
+    onSettle: () -> Unit,
+    onUnsettle: () -> Unit
+) {
     var showConfirm by remember { mutableStateOf(false) }
 
-    val isCredit = tx.type in listOf("REFUND", "SELF_TRANSFER")
-    val amountColor  = when (tx.type) {
-        "REFUND", "SELF_TRANSFER" -> Green
-        "UNPARSED"                -> TextLabel
-        else                      -> TextPrimary
+    val isSettled = tx.settledAt != null
+    val isCredit  = tx.type in listOf("REFUND", "SELF_TRANSFER")
+    val amountColor  = when {
+        isSettled                              -> TextDisabled
+        tx.type == "REFUND" || tx.type == "SELF_TRANSFER" -> Green
+        tx.type == "UNPARSED"                  -> TextLabel
+        else                                   -> TextPrimary
     }
     val amountPrefix = if (isCredit) "−" else "+"
     val typeColor = when (tx.type) {
@@ -120,6 +134,11 @@ private fun TransactionItem(tx: Transaction, onDiscard: () -> Unit) {
                     Text("·", color = TextDisabled, fontSize = 9.sp)
                     Text("··${tx.cardLast4}", fontFamily = JetBrainsMono, fontSize = 9.sp, color = TextMeta)
                 }
+                if (isSettled) {
+                    Text("·", color = TextDisabled, fontSize = 9.sp)
+                    Text("SETTLED", fontFamily = JetBrainsMono, fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold, color = Green)
+                }
             }
         }
 
@@ -131,7 +150,22 @@ private fun TransactionItem(tx: Transaction, onDiscard: () -> Unit) {
             )
         }
 
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
+
+        // Settle toggle — manual, one tap, no UPI / no SMS involved
+        if (tx.type == "DEBIT") {
+            IconButton(
+                onClick = { if (isSettled) onUnsettle() else onSettle() },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    if (isSettled) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                    contentDescription = if (isSettled) "Mark as unsettled" else "Mark as settled",
+                    tint = if (isSettled) Green else TextDisabled,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
 
         // Discard button
         if (showConfirm) {
