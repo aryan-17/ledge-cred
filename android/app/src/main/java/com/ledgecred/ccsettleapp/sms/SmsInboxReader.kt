@@ -38,8 +38,8 @@ object SmsInboxReader {
 
                 val parsed = SmsParser.classify(body, sender)
 
-                // Skip if sender not recognized as a bank — avoids mutual fund, promo SMS etc.
-                if (parsed.bank == sender) continue  // bank == raw sender means no match in BANK_SENDER_MAP
+                // Skip if sender not recognized AND classified as UNPARSED — avoids promo/MF SMS
+                if (parsed.bank == sender && parsed.type == TransactionType.UNPARSED) continue
 
                 // Discard non-financial SMS
                 if (parsed.type in listOf(
@@ -60,6 +60,27 @@ object SmsInboxReader {
                 // Skip if already in Room
                 if (db.transactionDao().findByDedupeHash(hash) != null) continue
 
+                var matchedEventId: String? = null
+
+                // Match SELF_TRANSFER against AWAITING settle events
+                if (parsed.type == TransactionType.SELF_TRANSFER && parsed.amountPaise != null) {
+                    val match = db.settleEventDao().getAwaitingEvents().firstOrNull { event ->
+                        kotlin.math.abs(event.requestedAmountPaise - parsed.amountPaise) <= 100L
+                    }
+                    if (match != null) {
+                        val isPartial = parsed.amountPaise < match.requestedAmountPaise
+                        db.settleEventDao().upsert(
+                            match.copy(
+                                status             = if (isPartial) "PARTIAL" else "CLEARED",
+                                clearedAt          = smsTime,
+                                clearedAmountPaise = parsed.amountPaise,
+                                updatedAt          = System.currentTimeMillis()
+                            )
+                        )
+                        matchedEventId = match.id
+                    }
+                }
+
                 val tx = Transaction(
                     id                   = UUID.randomUUID().toString(),
                     amountPaise          = parsed.amountPaise ?: 0L,
@@ -70,7 +91,7 @@ object SmsInboxReader {
                     smsTime              = smsTime,
                     rawSms               = body,
                     dedupeHash           = hash,
-                    matchedSettleEventId = null,
+                    matchedSettleEventId = matchedEventId,
                     suggestedType        = null,
                     suggestedConfidence  = null
                 )
