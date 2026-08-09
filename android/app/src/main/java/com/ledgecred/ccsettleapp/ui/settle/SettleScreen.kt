@@ -118,6 +118,18 @@ fun SettleScreen(
             )
         }
 
+        if (!state.isVpaValid) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "No valid UPI ID set — add one in Settings before paying, or GPay may hang without an error.",
+                style = AppTypography.bodySmall, color = Red,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(RedBg, RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            )
+        }
+
         Spacer(Modifier.weight(1f))
 
         // Pay CTA
@@ -133,6 +145,7 @@ fun SettleScreen(
                     onPaid()
                 }
             },
+            enabled  = state.isVpaValid,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape    = RoundedCornerShape(16.dp),
             colors   = ButtonDefaults.buttonColors(containerColor = Amber)

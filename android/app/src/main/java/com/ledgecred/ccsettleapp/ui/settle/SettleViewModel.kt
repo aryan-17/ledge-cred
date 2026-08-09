@@ -22,6 +22,9 @@ data class SettleUiState(
 ) {
     val staysPendingPaise get() = (pendingPaise - draftPaise).coerceAtLeast(0L)
     val exceedsCap        get() = draftPaise > dailyCapPaise
+    // A blank/malformed VPA produces a broken upi:// intent that GPay can spin on
+    // forever instead of erroring out clearly — catch it before we even try.
+    val isVpaValid        get() = vpa.trim().let { it.length > 3 && it.contains("@") }
 }
 
 class SettleViewModel(app: Application, saved: SavedStateHandle) : AndroidViewModel(app) {
@@ -54,7 +57,10 @@ class SettleViewModel(app: Application, saved: SavedStateHandle) : AndroidViewMo
     fun buildUpiIntent(): Intent {
         val state  = uiState.value
         val event  = state.event ?: error("No active event")
-        val ref    = event.parentRef + (event.suffix ?: "")
+        // "tr" must be unique per payment attempt (NPCI spec) — reusing the same
+        // reference across retries/re-opens makes GPay hang indefinitely on load
+        // instead of surfacing an error. parentRef+suffix alone repeats all day.
+        val ref    = event.parentRef + (event.suffix ?: "") + "-" + attemptNonce()
         val amount = "%.2f".format(state.draftPaise / 100.0)
         val uri = android.net.Uri.Builder()
             .scheme("upi")
@@ -78,4 +84,7 @@ class SettleViewModel(app: Application, saved: SavedStateHandle) : AndroidViewMo
                 updatedAt = System.currentTimeMillis())
         )
     }
+
+    private fun attemptNonce(): String =
+        System.currentTimeMillis().toString(36).takeLast(6).uppercase()
 }

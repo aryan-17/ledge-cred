@@ -20,48 +20,40 @@ class SmsReceiver : BroadcastReceiver() {
         val db = AppDatabase.getInstance(context)
 
         messages.forEach { smsMessage ->
-            val body     = smsMessage.messageBody     ?: return@forEach
-            val sender   = smsMessage.originatingAddress ?: return@forEach
-            val smsTime  = smsMessage.timestampMillis
+            val body    = smsMessage.messageBody        ?: return@forEach
+            val sender  = smsMessage.originatingAddress ?: return@forEach
+            val smsTime = smsMessage.timestampMillis
 
             val parsed = SmsParser.classify(body, sender)
 
-            // Discard OTP, DECLINED, STATEMENT — never store
+            // Discard OTP, DECLINED, STATEMENT
             if (parsed.type in listOf(TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT)) return@forEach
 
-            // Discard if no amount and not UNPARSED (nothing useful to show)
-            if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) return@forEach
-
-            val hash = SmsParser.dedupeHash(
-                bank          = parsed.bank ?: sender,
-                amountPaise   = parsed.amountPaise ?: 0L,
-                cardLast4     = parsed.cardLast4,
-                txnTimeMillis = smsTime
-            )
-
             CoroutineScope(Dispatchers.IO).launch {
-                // Deduplicate
-                if (db.transactionDao().findByDedupeHash(hash) != null) return@launch
+                val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
 
-                val tx = Transaction(
-                    id                   = UUID.randomUUID().toString(),
-                    amountPaise          = parsed.amountPaise ?: 0L,
-                    type                 = parsed.type.name,
-                    cardLast4            = parsed.cardLast4,
-                    bank                 = parsed.bank ?: sender,
-                    txnTime              = smsTime,
-                    smsTime              = smsTime,
-                    rawSms               = body,
-                    dedupeHash           = hash,
-                    matchedSettleEventId = null,
-                    suggestedType        = null,
-                    suggestedConfidence  = null
+                // If user has configured cards, only process SMS containing one of their last4s
+                // For SELF_TRANSFER (savings account credit), skip last4 filter
+                if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
+                    val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
+                    if (bodyLast4 == null || bodyLast4 !in trackedLast4s) return@launch
+                }
+
+                if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) return@launch
+
+                val hash = SmsParser.dedupeHash(
+                    bank          = parsed.bank ?: sender,
+                    amountPaise   = parsed.amountPaise ?: 0L,
+                    cardLast4     = parsed.cardLast4,
+                    txnTimeMillis = smsTime
                 )
 
-                // Check if SELF_TRANSFER clears an AWAITING settle event
+                if (db.transactionDao().findByDedupeHash(hash) != null) return@launch
+
+                var matchedEventId: String? = null
                 if (parsed.type == TransactionType.SELF_TRANSFER && parsed.amountPaise != null) {
                     val match = db.settleEventDao().getAwaitingEvents().firstOrNull { event ->
-                        kotlin.math.abs(event.requestedAmountPaise - parsed.amountPaise) <= 100L // ±₹1
+                        kotlin.math.abs(event.requestedAmountPaise - parsed.amountPaise) <= 100L
                     }
                     if (match != null) {
                         val isPartial = parsed.amountPaise < match.requestedAmountPaise
@@ -73,12 +65,26 @@ class SmsReceiver : BroadcastReceiver() {
                                 updatedAt          = System.currentTimeMillis()
                             )
                         )
-                        db.transactionDao().upsert(tx.copy(matchedSettleEventId = match.id))
-                        return@launch
+                        matchedEventId = match.id
                     }
                 }
 
-                db.transactionDao().upsert(tx)
+                db.transactionDao().upsert(
+                    Transaction(
+                        id                   = UUID.randomUUID().toString(),
+                        amountPaise          = parsed.amountPaise ?: 0L,
+                        type                 = parsed.type.name,
+                        cardLast4            = parsed.cardLast4,
+                        bank                 = parsed.bank ?: sender,
+                        txnTime              = smsTime,
+                        smsTime              = smsTime,
+                        rawSms               = body,
+                        dedupeHash           = hash,
+                        matchedSettleEventId = matchedEventId,
+                        suggestedType        = null,
+                        suggestedConfidence  = null
+                    )
+                )
             }
         }
     }

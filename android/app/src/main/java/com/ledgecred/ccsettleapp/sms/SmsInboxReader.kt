@@ -38,8 +38,13 @@ object SmsInboxReader {
 
                 val parsed = SmsParser.classify(body, sender)
 
-                // Skip if sender not recognized AND classified as UNPARSED — avoids promo/MF SMS
-                if (parsed.bank == sender && parsed.type == TransactionType.UNPARSED) continue
+                // Only process SMS containing one of the user's tracked card last4s
+                // SELF_TRANSFER (savings credit) is exempt from this filter
+                val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
+                if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
+                    val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
+                    if (bodyLast4 == null || bodyLast4 !in trackedLast4s) continue
+                }
 
                 // Discard non-financial SMS
                 if (parsed.type in listOf(

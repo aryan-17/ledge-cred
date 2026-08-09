@@ -6,7 +6,7 @@ object SmsParser {
         """(?:INR|Rs\.?|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)""",
         RegexOption.IGNORE_CASE
     )
-    private val CARD_LAST4_REGEX = Regex(
+    val CARD_LAST4_REGEX = Regex(
         """(?:XX|x{2,4}|ending\s*|[Cc]ard\s+(?:no\.?\s*)?)(\d{4})""",
         RegexOption.IGNORE_CASE
     )
@@ -30,7 +30,8 @@ object SmsParser {
         "YESBNK" to "Yes Bank","IDFCBN" to "IDFC",
         "INDBNK" to "IndusInd","IDFCCD" to "IDFC",
         "PNBSMS" to "PNB",     "BOIIND" to "BOI",
-        "SLICEIT" to "Slice",  "SLICEPA" to "Slice"
+        "SLICEIT" to "Slice",  "SLICEPA" to "Slice",
+        "SLCBNK"  to "Slice",  "AD-SLCBNK" to "Slice"
     )
 
     fun classify(sms: String, sender: String): ParsedSms {

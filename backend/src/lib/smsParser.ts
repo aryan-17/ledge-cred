@@ -24,7 +24,8 @@ const BANK_SENDER_MAP: Record<string, string> = {
   INDBNK: 'IndusInd', IDFCCD: 'IDFC',
   PNBSMS: 'PNB',
   BOIIND: 'BOI',
-  SLICEIT: 'Slice', SLICEPA: 'Slice'
+  SLICEIT: 'Slice', SLICEPA: 'Slice',
+  SLCBNK: 'Slice', 'AD-SLCBNK': 'Slice'
 }
 
 export type TransactionType =
