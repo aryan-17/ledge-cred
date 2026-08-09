@@ -1,9 +1,10 @@
 package com.ledgecred.ccsettleapp.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions")
+@Entity(tableName = "transactions", indices = [Index(value = ["dedupeHash"], unique = true)])
 data class Transaction(
     @PrimaryKey val id: String,
     val amountPaise: Long,

@@ -32,9 +32,16 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add unique index on dedupeHash to prevent duplicate SMS entries
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_transactions_dedupeHash ON transactions(dedupeHash)")
+    }
+}
+
 @Database(
     entities = [Transaction::class, SettleEvent::class, UserCard::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,7 +59,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ccsettleapp.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build().also { INSTANCE = it }
             }
     }
