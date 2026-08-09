@@ -34,9 +34,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Read SMS inbox every time app comes to foreground — catches missed SMS on Vivo/MIUI
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
             lifecycleScope.launch {
                 SmsInboxReader.sync(this@MainActivity, lookbackDays = 7)
             }

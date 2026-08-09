@@ -59,6 +59,7 @@ fun OnboardingScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) vm.onSmsSmsPermissionGranted() }
 
+
     Column(
         modifier = Modifier.fillMaxSize().background(Bg).padding(30.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -124,7 +125,7 @@ fun OnboardingScreen(
             onClick = {
                 when (state.currentStep) {
                     0 -> signInLauncher.launch(googleClient.signInIntent)
-                    1 -> smsLauncher.launch(Manifest.permission.RECEIVE_SMS)
+                    1 -> smsLauncher.launch(Manifest.permission.READ_SMS)
                     2 -> {
                         context.startActivity(Intent(
                             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
