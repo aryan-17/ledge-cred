@@ -152,10 +152,32 @@ private fun TransactionItem(
 
         Spacer(Modifier.width(4.dp))
 
-        // Settle toggle — manual, one tap, no UPI / no SMS involved
+        // Settle toggle — requires confirm to prevent accidental taps
         if (tx.type == "DEBIT") {
+            var showSettleConfirm by remember { mutableStateOf(false) }
+            if (showSettleConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showSettleConfirm = false },
+                    containerColor = Surface,
+                    title = { Text(if (isSettled) "Mark as unsettled?" else "Mark as settled?",
+                        color = TextPrimary, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
+                    text = { Text(if (isSettled) "This will add ₹${tx.amountPaise/100} back to your pending balance."
+                        else "This removes ₹${tx.amountPaise/100} from your pending balance.",
+                        style = AppTypography.bodyMedium, color = TextLabel) },
+                    confirmButton = {
+                        TextButton(onClick = { if (isSettled) onUnsettle() else onSettle(); showSettleConfirm = false }) {
+                            Text("Confirm", color = Amber, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSettleConfirm = false }) {
+                            Text("Cancel", color = TextLabel)
+                        }
+                    }
+                )
+            }
             IconButton(
-                onClick = { if (isSettled) onUnsettle() else onSettle() },
+                onClick = { showSettleConfirm = true },
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
