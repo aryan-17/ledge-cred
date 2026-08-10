@@ -88,18 +88,18 @@ syncRoute.post('/', async (c) => {
 
   for (let i = 0; i < body.transactions.length; i++) {
     const err = validateTransaction(body.transactions[i], i)
-    if (err) return c.json({ error: err }, 400)
+    if (err) { log.warn({ uid, err, tx: body.transactions[i] }, 'sync validation failed'); return c.json({ error: err }, 400) }
   }
 
   for (let i = 0; i < body.settleEvents.length; i++) {
     const err = validateSettleEvent(body.settleEvents[i], i)
-    if (err) return c.json({ error: err }, 400)
+    if (err) { log.warn({ uid, err, se: body.settleEvents[i] }, 'sync validation failed'); return c.json({ error: err }, 400) }
   }
 
   const prisma = getPrisma()
   const syncedAt = new Date()
   const since = body.lastSyncedAt ? new Date(body.lastSyncedAt) : new Date(0)
-  log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since }, 'sync start')
+  log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since, sample: body.transactions[0] ?? null }, 'sync start')
 
   // ponytail: sequential upserts — fine for personal-scale syncs; batch if throughput matters
   for (const tx of body.transactions) {
