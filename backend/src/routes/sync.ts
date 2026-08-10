@@ -30,7 +30,7 @@ function validateTransaction(tx: unknown, i: number): string | null {
                                                return `transactions[${i}].amountPaise: must be non-negative integer`
   if (!VALID_TX_TYPES.has(t.type as TransactionType))
                                                return `transactions[${i}].type: invalid (got "${t.type}")`
-  if (t.cardLast4 !== null && (typeof t.cardLast4 !== 'string' || !/^\d{4}$/.test(t.cardLast4)))
+  if (t.cardLast4 != null && (typeof t.cardLast4 !== 'string' || !/^\d{4}$/.test(t.cardLast4)))
                                                return `transactions[${i}].cardLast4: must be 4 digits or null`
   if (typeof t.bank !== 'string' || t.bank.length < 1 || t.bank.length > 60)
                                                return `transactions[${i}].bank: invalid`
@@ -38,7 +38,9 @@ function validateTransaction(tx: unknown, i: number): string | null {
   if (typeof t.dedupeHash !== 'string' || t.dedupeHash.length < 1)
                                                return `transactions[${i}].dedupeHash: required`
   if (!isISO(t.updatedAt))                     return `transactions[${i}].updatedAt: invalid ISO date`
-  if (!isNullableISO(t.deletedAt))             return `transactions[${i}].deletedAt: invalid ISO date or null`
+  // deletedAt and settledAt can be null or undefined (not sent)
+  if (t.deletedAt != null && !isISO(t.deletedAt))  return `transactions[${i}].deletedAt: invalid ISO date`
+  if (t.settledAt != null && !isISO(t.settledAt))  return `transactions[${i}].settledAt: invalid ISO date`
   return null
 }
 
@@ -137,9 +139,9 @@ function mapTxToDb(tx: SyncTransaction, uid: string) {
     txnTime: new Date(tx.txnTime),
     dedupeHash: tx.dedupeHash,
     matchedSettleEventId: tx.matchedSettleEventId,
-    suggestedType: tx.suggestedType,
-    suggestedConfidence: tx.suggestedConfidence,
-    reviewed: tx.reviewed,
+    suggestedType: tx.suggestedType ?? null,
+    suggestedConfidence: tx.suggestedConfidence ?? null,
+    reviewed: tx.reviewed ?? false,
     settledAt: tx.settledAt ? new Date(tx.settledAt) : null,
     updatedAt: new Date(tx.updatedAt),
     deletedAt: tx.deletedAt ? new Date(tx.deletedAt) : null
