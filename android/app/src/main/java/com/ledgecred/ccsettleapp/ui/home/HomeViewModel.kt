@@ -32,14 +32,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val todayStart: Long
         get() = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    private val _pending   = repo.observePendingPaise()
-    private val _cap       = prefs.dailyCapPaise
-    private val _unreviewed = db.transactionDao().observeUnreviewedCount()
-    private val _recent    = db.transactionDao().observeRecent(5)
-    private val _events    = db.settleEventDao().observeAll()
-
-    val uiState: StateFlow<HomeUiState> = combine(_pending, _cap, _unreviewed, _recent, _events) {
-        pending, cap, unreviewed, recent, events ->
+    val uiState: StateFlow<HomeUiState> = combine(
+        // Nest combines to avoid the 5-flow array overload which loses type info
+        combine(repo.observePendingPaise(), prefs.dailyCapPaise) { pending, cap -> Pair(pending, cap) },
+        combine(db.transactionDao().observeUnreviewedCount(), db.transactionDao().observeRecent(5)) { count, recent -> Pair(count, recent) },
+        db.settleEventDao().observeAll()
+    ) { (pending, cap), (unreviewed, recent), events ->
         val todaySpend   = recent.filter { it.type == "DEBIT" && it.txnTime > todayStart && it.deletedAt == null }
                                .sumOf { it.amountPaise }
         val settledToday = events
