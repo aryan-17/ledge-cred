@@ -20,7 +20,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE updatedAt > :since")
     suspend fun modifiedSince(since: Long): List<Transaction>
 
-    @Query("SELECT * FROM transactions WHERE dedupeHash = :hash AND deletedAt IS NULL LIMIT 1")
+    @Query("SELECT * FROM transactions WHERE dedupeHash = :hash LIMIT 1")
     suspend fun findByDedupeHash(hash: String): Transaction?
 
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
