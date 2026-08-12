@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         // Read SMS inbox every time app comes to foreground — catches missed SMS on Vivo/MIUI
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
             lifecycleScope.launch {
-                SmsInboxReader.sync(this@MainActivity, lookbackDays = 7)
+                SmsInboxReader.sync(this@MainActivity)
             }
         }
     }

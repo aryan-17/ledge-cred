@@ -103,15 +103,21 @@ syncRoute.post('/', async (c) => {
   const since = body.lastSyncedAt ? new Date(body.lastSyncedAt) : new Date(0)
   log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since, sample: body.transactions[0] ?? null }, 'sync start')
 
-  // ponytail: sequential upserts — fine for personal-scale syncs; batch if throughput matters
-  for (const tx of body.transactions) {
-    const data = mapTxToDb(tx, uid)
-    await prisma.transaction.upsert({ where: { id: tx.id }, update: data, create: data })
+  // Batch upsert: createMany for new rows, then update existing ones in parallel
+  if (body.transactions.length > 0) {
+    const txData = body.transactions.map(tx => mapTxToDb(tx, uid))
+    await prisma.transaction.createMany({ data: txData, skipDuplicates: true })
+    await Promise.all(body.transactions.map(tx =>
+      prisma.transaction.update({ where: { id: tx.id }, data: mapTxToDb(tx, uid) }).catch(() => {})
+    ))
   }
 
-  for (const se of body.settleEvents) {
-    const data = mapSeToDb(se, uid)
-    await prisma.settleEvent.upsert({ where: { id: se.id }, update: data, create: data })
+  if (body.settleEvents.length > 0) {
+    const seData = body.settleEvents.map(se => mapSeToDb(se, uid))
+    await prisma.settleEvent.createMany({ data: seData, skipDuplicates: true })
+    await Promise.all(body.settleEvents.map(se =>
+      prisma.settleEvent.update({ where: { id: se.id }, data: mapSeToDb(se, uid) }).catch(() => {})
+    ))
   }
 
   const [transactions, settleEvents] = await Promise.all([

@@ -11,7 +11,8 @@ private val Context.dataStore by preferencesDataStore(name = "ccsettleapp_prefs"
 class AppPreferences(private val context: Context) {
 
     companion object {
-        val LAST_SYNCED_AT    = longPreferencesKey("last_synced_at")
+        val LAST_SYNCED_AT      = longPreferencesKey("last_synced_at")
+        val LAST_INBOX_READ_AT  = longPreferencesKey("last_inbox_read_at")
         val VPA               = stringPreferencesKey("vpa")
         val DIGEST_HOUR       = intPreferencesKey("digest_hour")         // default 22
         val DAILY_CAP_PAISE   = longPreferencesKey("daily_cap_paise")    // default ₹1L = 10_000_000
@@ -20,7 +21,8 @@ class AppPreferences(private val context: Context) {
         val TRACKED_CARDS     = stringSetPreferencesKey("tracked_cards")  // set of "BANK:last4", empty = track all
     }
 
-    val lastSyncedAt: Flow<Long?>  = context.dataStore.data.map { it[LAST_SYNCED_AT] }
+    val lastSyncedAt: Flow<Long?>    = context.dataStore.data.map { it[LAST_SYNCED_AT] }
+    val lastInboxReadAt: Flow<Long?> = context.dataStore.data.map { it[LAST_INBOX_READ_AT] }
     val vpa: Flow<String>          = context.dataStore.data.map { it[VPA] ?: "" }
     val digestHour: Flow<Int>      = context.dataStore.data.map { it[DIGEST_HOUR] ?: 22 }
     val dailyCapPaise: Flow<Long>  = context.dataStore.data.map { it[DAILY_CAP_PAISE] ?: 10_000_000L }
@@ -29,6 +31,9 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setLastSyncedAt(millis: Long) =
         context.dataStore.edit { it[LAST_SYNCED_AT] = millis }
+
+    suspend fun setLastInboxReadAt(millis: Long) =
+        context.dataStore.edit { it[LAST_INBOX_READ_AT] = millis }
 
     suspend fun setVpa(vpa: String) =
         context.dataStore.edit { it[VPA] = vpa }

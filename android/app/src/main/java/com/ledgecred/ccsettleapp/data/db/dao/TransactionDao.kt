@@ -23,6 +23,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE dedupeHash = :hash LIMIT 1")
     suspend fun findByDedupeHash(hash: String): Transaction?
 
+    @Query("SELECT dedupeHash FROM transactions")
+    suspend fun getAllDedupeHashes(): List<String>
+
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): Transaction?
 

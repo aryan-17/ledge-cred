@@ -4,54 +4,60 @@ import android.content.Context
 import android.provider.Telephony
 import com.ledgecred.ccsettleapp.data.db.AppDatabase
 import com.ledgecred.ccsettleapp.data.db.entity.Transaction
+import com.ledgecred.ccsettleapp.data.prefs.AppPreferences
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
 object SmsInboxReader {
 
     /**
-     * Reads SMS inbox for the last [lookbackDays] days, parses bank SMS,
-     * and inserts any new transactions into Room (deduped by hash).
+     * Reads SMS inbox since [lastInboxReadAt] (incremental — not the full 7 days every open).
+     * Falls back to 7 days on first run.
+     * Loads all existing dedupe hashes into memory once — no per-SMS DB query.
      */
-    suspend fun sync(context: Context, lookbackDays: Int = 7) = withContext(Dispatchers.IO) {
-        val db = AppDatabase.getInstance(context)
-        val since = System.currentTimeMillis() - lookbackDays * 24 * 60 * 60 * 1000L
+    suspend fun sync(context: Context) = withContext(Dispatchers.IO) {
+        val db    = AppDatabase.getInstance(context)
+        val prefs = AppPreferences(context)
+
+        val lastRead = prefs.lastInboxReadAt.first()
+        val since    = lastRead ?: (System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)
+        val now      = System.currentTimeMillis()
+
+        // Load all existing hashes into memory — O(1) lookup per SMS instead of O(n) DB queries
+        val existingHashes = db.transactionDao().getAllDedupeHashes().toHashSet()
+
+        // Load tracked card last4s
+        val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
 
         val cursor = context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
-            arrayOf(
-                Telephony.Sms.ADDRESS,
-                Telephony.Sms.BODY,
-                Telephony.Sms.DATE
-            ),
+            arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
             "${Telephony.Sms.DATE} > ?",
             arrayOf(since.toString()),
             "${Telephony.Sms.DATE} DESC"
         ) ?: return@withContext
 
+        val newTransactions = mutableListOf<Transaction>()
+
         cursor.use {
             while (it.moveToNext()) {
-                val sender = it.getString(0) ?: continue
-                val body   = it.getString(1) ?: continue
+                val sender  = it.getString(0) ?: continue
+                val body    = it.getString(1) ?: continue
                 val smsTime = it.getLong(2)
 
                 val parsed = SmsParser.classify(body, sender)
 
-                // Only process SMS containing one of the user's tracked card last4s
-                // SELF_TRANSFER (savings credit) is exempt from this filter
-                val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
+                if (parsed.type in listOf(
+                        TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT
+                    )) continue
+
+                // Filter by tracked card last4s (SELF_TRANSFER exempt)
                 if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
                     val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
                     if (bodyLast4 == null || bodyLast4 !in trackedLast4s) continue
                 }
-
-                // Discard non-financial SMS
-                if (parsed.type in listOf(
-                        TransactionType.OTP,
-                        TransactionType.DECLINED,
-                        TransactionType.STATEMENT
-                    )) continue
 
                 if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) continue
 
@@ -62,12 +68,11 @@ object SmsInboxReader {
                     txnTimeMillis = smsTime
                 )
 
-                // Skip if already in Room
-                if (db.transactionDao().findByDedupeHash(hash) != null) continue
+                // In-memory dedupe check — no DB query per SMS
+                if (existingHashes.contains(hash)) continue
+                existingHashes.add(hash)
 
                 var matchedEventId: String? = null
-
-                // Match SELF_TRANSFER against AWAITING settle events
                 if (parsed.type == TransactionType.SELF_TRANSFER && parsed.amountPaise != null) {
                     val match = db.settleEventDao().getAwaitingEvents().firstOrNull { event ->
                         kotlin.math.abs(event.requestedAmountPaise - parsed.amountPaise) <= 100L
@@ -86,7 +91,7 @@ object SmsInboxReader {
                     }
                 }
 
-                val tx = Transaction(
+                newTransactions.add(Transaction(
                     id                   = UUID.randomUUID().toString(),
                     amountPaise          = parsed.amountPaise ?: 0L,
                     type                 = parsed.type.name,
@@ -99,9 +104,16 @@ object SmsInboxReader {
                     matchedSettleEventId = matchedEventId,
                     suggestedType        = null,
                     suggestedConfidence  = null
-                )
-                db.transactionDao().upsert(tx)
+                ))
             }
         }
+
+        // Batch insert all new transactions at once
+        if (newTransactions.isNotEmpty()) {
+            db.transactionDao().upsert(*newTransactions.toTypedArray())
+        }
+
+        // Update last read timestamp
+        prefs.setLastInboxReadAt(now)
     }
 }
