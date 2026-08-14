@@ -14,10 +14,11 @@ object SmsParser {
     // Classification priority: OTP → DECLINED → STATEMENT → HOLD → credit → debit → UNPARSED
     private val OTP_KEYWORDS      = listOf("otp", "one time password", "one-time", "do not share")
     private val DECLINED_KEYWORDS = listOf("declined", "failed", "unsuccessful")
-    private val STATEMENT_KEYWORDS = listOf("statement", "minimum amount due", "min. amount due", "payment due")
+    private val STATEMENT_KEYWORDS = listOf("statement", "minimum amount due", "min. amount due", "payment due",
+        "received towards", "payment received", "payment of", "bill payment", "amount due")
     private val HOLD_KEYWORDS     = listOf("hold", "authorization hold", "pre-auth", "pre auth")
     private val CREDIT_KEYWORDS   = listOf("credited", "received", "refund", "cashback", "reversal", "money back")
-    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "payment of", "paid")
+    private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "paid")
     // Only explicit card references — 'xx' alone also matches account numbers
     private val CARD_KEYWORDS     = listOf("credit card", "debit card")
 

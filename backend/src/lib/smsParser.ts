@@ -6,11 +6,12 @@ const CARD_LAST4_REGEX = /(?:XX|x{2,4}|ending\s*|[Cc]ard\s+(?:no\.?\s*)?)(\d{4})
 
 const OTP_KEYWORDS      = ['otp', 'one time password', 'one-time', 'do not share']
 const DECLINED_KEYWORDS = ['declined', 'failed', 'unsuccessful']
-const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due', 'payment due']
+const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due', 'payment due',
+  'received towards', 'payment received', 'payment of', 'bill payment', 'amount due']
 const HOLD_KEYWORDS     = ['hold', 'authorization hold', 'pre-auth', 'pre auth']
 // 'credited' not 'credit' — avoids matching "credit card" as a credit transaction
 const CREDIT_KEYWORDS   = ['credited', 'received', 'refund', 'cashback', 'reversal', 'money back']
-const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'payment of', 'paid']
+const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'paid']
 // Only explicit card references count — 'xx' alone also matches account numbers
 const CARD_KEYWORDS     = ['credit card', 'debit card']
 
