@@ -4,6 +4,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { authMiddleware } from './middleware/auth'
 import { parseSms } from './lib/smsParser'
 import { rateLimit } from './lib/rateLimit'
+import { getPrisma } from './lib/prisma'
 import { usersRoute } from './routes/users'
 import { syncRoute } from './routes/sync'
 import { fcmRoute } from './routes/fcm'
@@ -24,8 +25,15 @@ app.use('*', bodyLimit({ maxSize: 512 * 1024, onError: (c) =>
   c.json({ error: 'Request body too large (max 512KB)' }, 413)
 }))
 
-// Health check — no auth required
-app.get('/health', (c) => c.json({ ok: true }))
+// Health check — pings DB to keep Neon from pausing on free tier
+app.get('/health', async (c) => {
+  try {
+    await getPrisma().$queryRaw`SELECT 1`
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ ok: false, db: 'unreachable' }, 503)
+  }
+})
 
 // DEV ONLY: parse a raw SMS using regex parser
 // Protected by dev secret header even in non-prod to prevent abuse
