@@ -58,7 +58,8 @@ function validateSettleEvent(se: unknown, i: number): string | null {
                                                    return `settleEvents[${i}].pendingSnapshotPaise: must be non-negative integer`
   if (!isISO(s.createdAt))                         return `settleEvents[${i}].createdAt: invalid ISO date`
   if (!isISO(s.updatedAt))                         return `settleEvents[${i}].updatedAt: invalid ISO date`
-  if (!isNullableISO(s.deletedAt))                 return `settleEvents[${i}].deletedAt: invalid`
+  if (s.deletedAt != null && !isISO(s.deletedAt))  return `settleEvents[${i}].deletedAt: invalid`
+  if (s.clearedAt != null && !isISO(s.clearedAt))  return `settleEvents[${i}].clearedAt: invalid`
   return null
 }
 
