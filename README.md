@@ -71,11 +71,16 @@ For local dev, emulator hits `10.0.2.2:3000`. For real device, update `API_BASE_
 
 ## Key design decisions
 
-- **SMS read on app open, not real-time** — avoids OEM battery killers (Vivo/MIUI) that kill background receivers. `SmsInboxReader` reads last 7 days on every `onResume`.
-- **Filter by card last-4 at ingestion** — only SMS containing a tracked card number are stored. Avoids mutual fund, OTP, promo messages.
+- **SMS read on app open, not real-time** — avoids OEM battery killers (Vivo/MIUI) that kill background receivers. `SmsInboxReader` reads since last open (`lastInboxReadAt`), falling back to 7 days on first run.
+- **Incremental SMS scan + in-memory dedupe** — reads only new SMS since last open. All existing dedupe hashes loaded into a `HashSet` once per scan; O(1) lookup per SMS instead of a DB query per SMS.
+- **Batch upserts on sync** — transactions sent to backend in a single bulk upsert call, not one-by-one.
+- **Filter by card last-4 at ingestion** — only SMS containing a tracked card number are stored. Avoids mutual fund, OTP, promo, bill payment messages.
+- **Bill payment SMS discarded** — SMS matching bill payment / bill received patterns are classified as `STATEMENT` and dropped before storage.
 - **Local-first** — Room is source of truth. Backend is sync target + backup. App works fully offline.
 - **No AI in critical path** — SMS classification is pure regex + keyword matching. Fast, deterministic, no API cost.
 - **Paise everywhere** — all amounts stored as `Long` (paise). Never `Float`. Indian grouping for display (₹1,04,300).
+- **Health endpoint wakes Neon** — `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
+- **Rate limiting + body size cap** — backend enforces per-IP rate limits and a request body size limit to prevent abuse.
 
 ## Docs
 
