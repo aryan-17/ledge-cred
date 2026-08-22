@@ -15,20 +15,6 @@ const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 
 // Only explicit card references count — 'xx' alone also matches account numbers
 const CARD_KEYWORDS     = ['credit card', 'debit card']
 
-const BANK_SENDER_MAP: Record<string, string> = {
-  HDFCBK: 'HDFC', HDFCBN: 'HDFC',
-  SBIINB: 'SBI',  SBICRD: 'SBI',
-  ICICIB: 'ICICI', ICICIN: 'ICICI',
-  AXISBK: 'Axis', AXISBN: 'Axis',
-  KOTAKB: 'Kotak', KOTAKN: 'Kotak',
-  YESBNK: 'Yes Bank', IDFCBN: 'IDFC',
-  INDBNK: 'IndusInd', IDFCCD: 'IDFC',
-  PNBSMS: 'PNB',
-  BOIIND: 'BOI',
-  SLICEIT: 'Slice', SLICEPA: 'Slice',
-  SLCBNK: 'Slice', 'AD-SLCBNK': 'Slice'
-}
-
 export type TransactionType =
   'DEBIT' | 'REFUND' | 'SELF_TRANSFER' | 'UNPARSED' | 'OTP' | 'DECLINED' | 'STATEMENT'
 
@@ -40,9 +26,8 @@ export interface ParsedSms {
 }
 
 export function parseSms(sender: string, body: string): ParsedSms {
-  const lower = body.toLowerCase()
-  const bank  = Object.entries(BANK_SENDER_MAP)
-    .find(([k]) => sender.toUpperCase().includes(k))?.[1] ?? sender
+  const lower     = body.toLowerCase()
+  const bank      = sender   // bank name resolved from UserCard on device; raw sender used here for dev testing
   const cardLast4 = CARD_LAST4_REGEX.exec(body)?.[1] ?? null
 
   const match = (keywords: string[]) => keywords.some(k => lower.includes(k))

@@ -51,6 +51,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         val id = UUID.randomUUID().toString()
         val card = UserCard(id = id, bank = bank.trim(), last4 = last4.trim(), nickname = nickname?.trim()?.ifBlank { null })
         db.userCardDao().upsert(card)
+        // Reset scan window so next open re-scans last 7 days — picks up SMS missed before card was tracked
+        prefs.setLastInboxReadAt(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)
         try { ApiClient.get().addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname)) } catch (_: Exception) {}
     }
 

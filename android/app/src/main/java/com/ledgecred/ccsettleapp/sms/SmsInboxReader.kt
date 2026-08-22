@@ -28,8 +28,9 @@ object SmsInboxReader {
         // Load all existing hashes into memory — O(1) lookup per SMS instead of O(n) DB queries
         val existingHashes = db.transactionDao().getAllDedupeHashes().toHashSet()
 
-        // Load tracked card last4s
-        val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
+        // Load tracked cards — bank name comes from UserCard, not SMS sender
+        val trackedCards  = db.userCardDao().getAll().associateBy { it.last4 }
+        val trackedLast4s = trackedCards.keys
 
         val cursor = context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
@@ -54,15 +55,18 @@ object SmsInboxReader {
                     )) continue
 
                 // Filter by tracked card last4s (SELF_TRANSFER exempt)
+                val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
                 if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
-                    val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
                     if (bodyLast4 == null || bodyLast4 !in trackedLast4s) continue
                 }
+
+                // Bank name from UserCard — works for any bank worldwide
+                val bankName = trackedCards[bodyLast4]?.bank ?: sender
 
                 if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) continue
 
                 val hash = SmsParser.dedupeHash(
-                    bank          = parsed.bank ?: sender,
+                    bank          = bankName,
                     amountPaise   = parsed.amountPaise ?: 0L,
                     cardLast4     = parsed.cardLast4,
                     txnTimeMillis = smsTime
@@ -96,7 +100,7 @@ object SmsInboxReader {
                     amountPaise          = parsed.amountPaise ?: 0L,
                     type                 = parsed.type.name,
                     cardLast4            = parsed.cardLast4,
-                    bank                 = parsed.bank ?: sender,
+                    bank                 = bankName,
                     txnTime              = smsTime,
                     smsTime              = smsTime,
                     rawSms               = body,
