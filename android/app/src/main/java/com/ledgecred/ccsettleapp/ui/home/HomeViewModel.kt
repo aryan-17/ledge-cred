@@ -42,7 +42,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 prefs.dailyCapPaise,
                 db.transactionDao().observeUnreviewedCount(),
                 db.transactionDao().observeRecent(5),
-                db.settleEventDao().observeAll()
+                combine(
+                    db.settleEventDao().observeAll(),
+                    db.transactionDao().observeTodaySpend(todayStart)
+                ) { events, todaySpend -> Pair(events, todaySpend) }
             ) { values ->
                 val pending    = values[0] as Long
                 val cap        = values[1] as Long
@@ -50,10 +53,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 @Suppress("UNCHECKED_CAST")
                 val recent     = values[3] as List<Transaction>
                 @Suppress("UNCHECKED_CAST")
-                val events     = values[4] as List<com.ledgecred.ccsettleapp.data.db.entity.SettleEvent>
+                val eventsPair  = values[4] as Pair<List<com.ledgecred.ccsettleapp.data.db.entity.SettleEvent>, Long>
+                val (events, todaySpend) = eventsPair
 
-                val todaySpend   = recent.filter { it.type == "DEBIT" && it.txnTime > todayStart && it.deletedAt == null }
-                                       .sumOf { it.amountPaise }
                 val settledToday = events
                     .filter { it.clearedAt != null && it.clearedAt >= todayStart }
                     .sumOf { it.clearedAmountPaise ?: 0L }
