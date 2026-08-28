@@ -85,12 +85,13 @@ private fun TransactionItem(
 ) {
     var showConfirm by remember { mutableStateOf(false) }
 
-    val isSettled = tx.settledAt != null
-    val isCredit  = tx.type in listOf("REFUND", "SELF_TRANSFER")
+    val isSettled  = tx.settledAt != null
+    val isCredit   = tx.type in listOf("REFUND", "SELF_TRANSFER")
+    val isUnparsed = tx.type == "UNPARSED"
     val amountColor  = when {
         isSettled                              -> TextDisabled
         tx.type == "REFUND" || tx.type == "SELF_TRANSFER" -> Green
-        tx.type == "UNPARSED"                  -> TextLabel
+        isUnparsed                             -> TextLabel
         else                                   -> TextPrimary
     }
     val amountPrefix = if (isCredit) "−" else "+"
@@ -144,9 +145,9 @@ private fun TransactionItem(
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                "$amountPrefix${formatIndianRupees(tx.amountPaise)}",
+                if (isUnparsed) "not counted" else "$amountPrefix${formatIndianRupees(tx.amountPaise)}",
                 fontFamily = JetBrainsMono, fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp, color = amountColor
+                fontSize = if (isUnparsed) 10.sp else 14.sp, color = amountColor
             )
         }
 
