@@ -3,7 +3,7 @@ package com.ledgecred.ccsettleapp.ui.settings
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.service.notification.NotificationListenerService
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -131,6 +131,28 @@ fun SettingsScreen(
                         CardRow(card = card, onDelete = { vm.removeCard(card) })
                     }
                 }
+            }
+        }
+
+        // Force sync all local data to cloud
+        item {
+            var syncing by remember { mutableStateOf(false) }
+            val scope2 = rememberCoroutineScope()
+            TextButton(
+                onClick = {
+                    if (!syncing) {
+                        syncing = true
+                        scope2.launch {
+                            vm.forceSyncAll()
+                            syncing = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (syncing) "Syncing…" else "Sync all data to cloud",
+                    color = Amber, fontFamily = InstrumentSans,
+                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             }
         }
 

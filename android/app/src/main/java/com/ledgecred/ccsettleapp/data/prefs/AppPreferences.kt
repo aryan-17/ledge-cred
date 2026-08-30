@@ -32,6 +32,9 @@ class AppPreferences(private val context: Context) {
     suspend fun setLastSyncedAt(millis: Long) =
         context.dataStore.edit { it[LAST_SYNCED_AT] = millis }
 
+    suspend fun clearLastSyncedAt() =
+        context.dataStore.edit { it.remove(LAST_SYNCED_AT) }
+
     suspend fun setLastInboxReadAt(millis: Long) =
         context.dataStore.edit { it[LAST_INBOX_READ_AT] = millis }
 

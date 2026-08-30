@@ -13,6 +13,18 @@ import type {
 
 export const syncRoute = new Hono<{ Variables: AppVariables }>()
 
+// Wipe all cloud data for this user — called before full local→cloud re-sync when switching DBs
+syncRoute.delete('/reset', async (c) => {
+  const uid = c.get('uid')
+  const prisma = getPrisma()
+  await Promise.all([
+    prisma.transaction.deleteMany({ where: { userId: uid } }),
+    prisma.settleEvent.deleteMany({ where: { userId: uid } })
+  ])
+  log.info({ uid }, 'sync reset: user data cleared')
+  return c.json({ ok: true })
+})
+
 const VALID_TX_TYPES   = new Set<TransactionType>(['DEBIT','REFUND','SELF_TRANSFER','UNPARSED','OTP','DECLINED','STATEMENT'])
 const VALID_SE_STATUSES = new Set<SettleStatus>(['AWAITING','CLEARED','PARTIAL','MANUAL_MATCH','EXPIRED'])
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

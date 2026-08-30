@@ -9,7 +9,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.ledgecred.ccsettleapp.data.api.ApiClient
+import com.ledgecred.ccsettleapp.data.api.ApiService
 import com.ledgecred.ccsettleapp.data.api.dto.AddCardRequest
+import com.ledgecred.ccsettleapp.data.repository.SyncRepository
 import com.ledgecred.ccsettleapp.data.db.AppDatabase
 import com.ledgecred.ccsettleapp.data.db.entity.UserCard
 import com.ledgecred.ccsettleapp.data.prefs.AppPreferences
@@ -52,6 +54,17 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setVpa(v: String)            = viewModelScope.launch { prefs.setVpa(v) }
     fun setSplitAboveCap(s: Boolean) = viewModelScope.launch { prefs.setSplitAboveCap(s) }
     fun logout()                     { FirebaseAuth.getInstance().signOut() }
+
+    /** Wipes cloud DB for this user, then pushes all local data — use after switching cloud DB. */
+    fun forceSyncAll() = viewModelScope.launch {
+        try {
+            ApiClient.get().resetCloudData()  // clear cloud
+        } catch (_: Exception) {}
+        prefs.clearLastSyncedAt()             // force full push
+        try {
+            SyncRepository(db, ApiClient.get(), prefs).sync()
+        } catch (_: Exception) {}
+    }
 
     fun addCard(bank: String, last4: String, nickname: String?, type: String = "card") = viewModelScope.launch {
         val id = UUID.randomUUID().toString()

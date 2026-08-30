@@ -20,6 +20,9 @@ interface ApiService {
     @DELETE("transactions/{id}")
     suspend fun deleteTransaction(@Path("id") id: String): Response<Unit>
 
+    @DELETE("sync/reset")
+    suspend fun resetCloudData(): Response<Unit>
+
     @GET("cards")
     suspend fun getCards(): CardsResponse
 
