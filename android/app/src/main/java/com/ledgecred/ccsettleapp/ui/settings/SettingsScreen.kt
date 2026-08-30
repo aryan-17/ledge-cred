@@ -135,28 +135,6 @@ fun SettingsScreen(
             }
         }
 
-        // Force sync all local data to cloud
-        item {
-            TextButton(
-                onClick = { vm.forceSyncAll() },
-                enabled = !syncing,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (syncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = Amber
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(if (syncing) "Syncing…" else "Sync all data to cloud",
-                    color = if (syncing) TextLabel else Amber,
-                    fontFamily = InstrumentSans,
-                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            }
-        }
-
         // Sign out
         item {
             TextButton(
