@@ -63,9 +63,14 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         if (_syncing.value) return
         viewModelScope.launch {
             _syncing.value = true
-            try { ApiClient.get().resetCloudData() } catch (_: Exception) {}
+            val api = ApiClient.get()
+            try { api.resetCloudData() } catch (_: Exception) {}
             prefs.clearLastSyncedAt()
-            try { SyncRepository(db, ApiClient.get(), prefs).sync() } catch (_: Exception) {}
+            // Push all local cards
+            db.userCardDao().getAll().forEach { card ->
+                try { api.addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname, type = card.type)) } catch (_: Exception) {}
+            }
+            try { SyncRepository(db, api, prefs).sync() } catch (_: Exception) {}
             _syncing.value = false
         }
     }
