@@ -30,7 +30,7 @@ class SmsReceiver : BroadcastReceiver() {
             if (parsed.type in listOf(TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT)) return@forEach
 
             CoroutineScope(Dispatchers.IO).launch {
-                val trackedLast4s = db.userCardDao().getAll().map { it.last4 }.toSet()
+                val trackedLast4s = db.userCardDao().getAll().filter { it.type == "card" }.map { it.last4 }.toSet()
 
                 // If user has configured cards, only process SMS containing one of their last4s
                 // For SELF_TRANSFER (savings account credit), skip last4 filter

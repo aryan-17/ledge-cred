@@ -44,6 +44,6 @@ data class SyncResponse(
 data class RegisterRequest(val fcmToken: String)
 data class FcmNotifyRequest(val title: String, val body: String)
 
-data class UserCardDto(val id: String, val bank: String, val last4: String, val nickname: String?)
-data class AddCardRequest(val bank: String, val last4: String, val nickname: String? = null)
+data class UserCardDto(val id: String, val bank: String, val last4: String, val nickname: String?, val type: String = "card")
+data class AddCardRequest(val bank: String, val last4: String, val nickname: String? = null, val type: String = "card")
 data class CardsResponse(val cards: List<UserCardDto>)

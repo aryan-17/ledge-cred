@@ -33,6 +33,16 @@
             android:enabled="true"
             android:exported="false"/>
 
+        <!-- Notification listener — UPI credit detection -->
+        <service
+            android:name=".notification.NotificationCreditListener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
         <!-- Firebase Cloud Messaging -->
         <service
             android:name=".fcm.CcSettleMessagingService"

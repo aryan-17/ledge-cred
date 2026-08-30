@@ -3,6 +3,7 @@ package com.ledgecred.ccsettleapp.ui.settings
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,6 +42,23 @@ fun SettingsScreen(
         item {
             Spacer(Modifier.height(20.dp))
             TextButton(onClick = onBack) { Text("← Back", color = TextLabel) }
+        }
+
+        // Notification access alert — needed for UPI credit detection
+        if (!state.notificationAccessGranted) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(RedBg, RoundedCornerShape(14.dp)).padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Notification access off — UPI credits won't be detected.",
+                        style = AppTypography.bodyMedium, color = RedText, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    }) { Text("GRANT", color = Red, fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold) }
+                }
+            }
         }
 
         // Battery alert
@@ -86,10 +104,10 @@ fun SettingsScreen(
             }
         }
 
-        // TRACKED CARDS section
+        // TRACKED CARDS & ACCOUNTS section
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionHeader("TRACKED CARDS")
+                SectionHeader("TRACKED CARDS & ACCOUNTS")
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { showAddCard = true }) {
                     Icon(Icons.Default.Add, contentDescription = "Add card", tint = Amber)
@@ -100,7 +118,7 @@ fun SettingsScreen(
         if (state.cards.isEmpty()) {
             item {
                 Text(
-                    "No cards added. Tap + to add a card.\nAll transactions counted until a card is added.",
+                    "No cards or accounts added. Tap + to add.\nAll transactions counted until a card is added.",
                     style = AppTypography.bodySmall, color = TextLabel,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -133,8 +151,8 @@ fun SettingsScreen(
     if (showAddCard) {
         AddCardDialog(
             onDismiss = { showAddCard = false },
-            onAdd = { bank, last4, nickname ->
-                vm.addCard(bank, last4, nickname)
+            onAdd = { bank, last4, nickname, type ->
+                vm.addCard(bank, last4, nickname, type)
                 showAddCard = false
             }
         )
@@ -164,27 +182,52 @@ private fun CardRow(card: UserCard, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun AddCardDialog(onDismiss: () -> Unit, onAdd: (bank: String, last4: String, nickname: String?) -> Unit) {
+private fun AddCardDialog(onDismiss: () -> Unit, onAdd: (bank: String, last4: String, nickname: String?, type: String) -> Unit) {
     var bank     by remember { mutableStateOf("") }
     var last4    by remember { mutableStateOf("") }
     var nickname by remember { mutableStateOf("") }
+    var type     by remember { mutableStateOf("card") }
     var error    by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor   = Surface,
-        title = { Text("Add Credit Card", color = TextPrimary, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
+        title = { Text("Add Card / Account", color = TextPrimary, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Type toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceRaised, androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("card" to "Credit Card", "account" to "Bank Account").forEach { (value, label) ->
+                        val selected = type == value
+                        TextButton(
+                            onClick = { type = value },
+                            modifier = Modifier.weight(1f).background(
+                                if (selected) Amber else androidx.compose.ui.graphics.Color.Transparent,
+                                androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                            ),
+                            contentPadding = PaddingValues(vertical = 6.dp)
+                        ) {
+                            Text(label, fontFamily = JetBrainsMono, fontSize = 10.sp,
+                                color = if (selected) AmberInk else TextLabel,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = bank, onValueChange = { bank = it },
-                    label = { Text("Bank (e.g. HDFC, Slice, IDFC)") },
+                    label = { Text(if (type == "account") "Bank (e.g. Slice, HDFC)" else "Bank (e.g. HDFC, Slice, IDFC)") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Amber, focusedLabelColor = Amber)
                 )
                 OutlinedTextField(
                     value = last4, onValueChange = { if (it.length <= 4) last4 = it.filter { c -> c.isDigit() } },
-                    label = { Text("Last 4 digits") },
+                    label = { Text(if (type == "account") "Account last 4 digits" else "Card last 4 digits") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Amber, focusedLabelColor = Amber)
                 )
@@ -201,7 +244,7 @@ private fun AddCardDialog(onDismiss: () -> Unit, onAdd: (bank: String, last4: St
             TextButton(onClick = {
                 if (bank.isBlank()) { error = "Bank is required"; return@TextButton }
                 if (last4.length != 4) { error = "Enter 4 digits"; return@TextButton }
-                onAdd(bank.trim(), last4.trim(), nickname.trim().ifBlank { null })
+                onAdd(bank.trim(), last4.trim(), nickname.trim().ifBlank { null }, type)
             }) { Text("Add", color = Amber, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {

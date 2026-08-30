@@ -1,8 +1,10 @@
 package com.ledgecred.ccsettleapp.ui.settings
 
 import android.app.Application
+import android.content.ComponentName
 import android.content.Context
 import android.os.PowerManager
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -16,11 +18,12 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 data class SettingsUiState(
-    val vpa: String                = "",
-    val digestHour: Int            = 22,
-    val splitAboveCap: Boolean     = true,
-    val batteryOptIgnored: Boolean = false,
-    val cards: List<UserCard>      = emptyList()
+    val vpa: String                   = "",
+    val digestHour: Int               = 22,
+    val splitAboveCap: Boolean        = true,
+    val batteryOptIgnored: Boolean    = false,
+    val notificationAccessGranted: Boolean = false,
+    val cards: List<UserCard>         = emptyList()
 )
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
@@ -33,11 +36,14 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         db.userCardDao().observeAll()
     ) { vpa, split, cards ->
         val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val notifListeners = Settings.Secure.getString(app.contentResolver, "enabled_notification_listeners") ?: ""
+        val notifGranted = notifListeners.contains(ComponentName(app, "com.ledgecred.ccsettleapp.notification.NotificationCreditListener").flattenToString())
         SettingsUiState(
-            vpa               = vpa,
-            splitAboveCap     = split,
-            batteryOptIgnored = pm.isIgnoringBatteryOptimizations(app.packageName),
-            cards             = cards
+            vpa                        = vpa,
+            splitAboveCap              = split,
+            batteryOptIgnored          = pm.isIgnoringBatteryOptimizations(app.packageName),
+            notificationAccessGranted  = notifGranted,
+            cards                      = cards
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -47,13 +53,13 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setSplitAboveCap(s: Boolean) = viewModelScope.launch { prefs.setSplitAboveCap(s) }
     fun logout()                     { FirebaseAuth.getInstance().signOut() }
 
-    fun addCard(bank: String, last4: String, nickname: String?) = viewModelScope.launch {
+    fun addCard(bank: String, last4: String, nickname: String?, type: String = "card") = viewModelScope.launch {
         val id = UUID.randomUUID().toString()
-        val card = UserCard(id = id, bank = bank.trim(), last4 = last4.trim(), nickname = nickname?.trim()?.ifBlank { null })
+        val card = UserCard(id = id, bank = bank.trim(), last4 = last4.trim(), nickname = nickname?.trim()?.ifBlank { null }, type = type)
         db.userCardDao().upsert(card)
         // Reset scan window so next open re-scans last 7 days — picks up SMS missed before card was tracked
         prefs.setLastInboxReadAt(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)
-        try { ApiClient.get().addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname)) } catch (_: Exception) {}
+        try { ApiClient.get().addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname, type = card.type)) } catch (_: Exception) {}
     }
 
     fun removeCard(card: UserCard) = viewModelScope.launch {
@@ -68,7 +74,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             if (local.isNotEmpty()) return@launch   // Room has data — use cache
             val remote = ApiClient.get().getCards().cards
             remote.forEach {
-                db.userCardDao().upsert(UserCard(id = it.id, bank = it.bank, last4 = it.last4, nickname = it.nickname))
+                db.userCardDao().upsert(UserCard(id = it.id, bank = it.bank, last4 = it.last4, nickname = it.nickname, type = it.type))
             }
         } catch (_: Exception) {}
     }
