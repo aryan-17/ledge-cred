@@ -49,6 +49,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
+
     init { syncCards() }
 
     fun setVpa(v: String)            = viewModelScope.launch { prefs.setVpa(v) }
@@ -56,14 +59,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun logout()                     { FirebaseAuth.getInstance().signOut() }
 
     /** Wipes cloud DB for this user, then pushes all local data — use after switching cloud DB. */
-    fun forceSyncAll() = viewModelScope.launch {
-        try {
-            ApiClient.get().resetCloudData()  // clear cloud
-        } catch (_: Exception) {}
-        prefs.clearLastSyncedAt()             // force full push
-        try {
-            SyncRepository(db, ApiClient.get(), prefs).sync()
-        } catch (_: Exception) {}
+    fun forceSyncAll() {
+        if (_syncing.value) return
+        viewModelScope.launch {
+            _syncing.value = true
+            try { ApiClient.get().resetCloudData() } catch (_: Exception) {}
+            prefs.clearLastSyncedAt()
+            try { SyncRepository(db, ApiClient.get(), prefs).sync() } catch (_: Exception) {}
+            _syncing.value = false
+        }
     }
 
     fun addCard(bank: String, last4: String, nickname: String?, type: String = "card") = viewModelScope.launch {
