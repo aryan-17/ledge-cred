@@ -116,6 +116,9 @@ syncRoute.post('/', async (c) => {
   const since = body.lastSyncedAt ? new Date(body.lastSyncedAt) : new Date(0)
   log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since, sample: body.transactions[0] ?? null }, 'sync start')
 
+  // Ensure user row exists — handles fresh DB where register hasn't been called yet
+  await prisma.user.upsert({ where: { uid }, update: {}, create: { uid } })
+
   // Batch upsert: createMany for new rows, then update existing ones in parallel
   if (body.transactions.length > 0) {
     const txData = body.transactions.map(tx => mapTxToDb(tx, uid))
