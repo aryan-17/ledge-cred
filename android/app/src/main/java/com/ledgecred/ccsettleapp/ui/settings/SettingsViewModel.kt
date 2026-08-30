@@ -66,11 +66,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             val api = ApiClient.get()
             try { api.resetCloudData() } catch (_: Exception) {}
             prefs.clearLastSyncedAt()
-            // Push all local cards
+            // sync first — auto-creates user row (FK parent for cards)
+            try { SyncRepository(db, api, prefs).sync() } catch (_: Exception) {}
+            // push cards after user row guaranteed to exist
             db.userCardDao().getAll().forEach { card ->
                 try { api.addCard(AddCardRequest(bank = card.bank, last4 = card.last4, nickname = card.nickname, type = card.type)) } catch (_: Exception) {}
             }
-            try { SyncRepository(db, api, prefs).sync() } catch (_: Exception) {}
             _syncing.value = false
         }
     }

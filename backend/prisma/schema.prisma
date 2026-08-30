@@ -23,6 +23,7 @@ model UserCard {
   bank      String
   last4     String
   nickname  String?
+  type      String   @default("card")
   createdAt DateTime @default(now())
 
   @@unique([userId, bank, last4])

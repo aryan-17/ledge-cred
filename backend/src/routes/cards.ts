@@ -21,7 +21,7 @@ cardsRoute.get('/', async (c) => {
 // Add a card
 cardsRoute.post('/', async (c) => {
   const uid = c.get('uid')
-  let body: { bank?: unknown; last4?: unknown; nickname?: unknown }
+  let body: { bank?: unknown; last4?: unknown; nickname?: unknown; type?: unknown }
 
   try {
     body = await c.req.json()
@@ -29,7 +29,8 @@ cardsRoute.post('/', async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { bank, last4, nickname } = body
+  const { bank, last4, nickname, type } = body
+  const cardType = (type === 'account') ? 'account' : 'card'
 
   if (!bank || typeof bank !== 'string' || bank.trim().length < 2 || bank.trim().length > 30) {
     return c.json({ error: 'bank must be a string between 2–30 characters' }, 400)
@@ -47,10 +48,13 @@ cardsRoute.post('/', async (c) => {
     return c.json({ error: 'Maximum 10 cards allowed per user' }, 400)
   }
 
+  // Ensure user exists before inserting card (FK constraint)
+  await getPrisma().user.upsert({ where: { uid }, update: {}, create: { uid } })
+
   const card = await getPrisma().userCard.upsert({
     where: { userId_bank_last4: { userId: uid, bank: bank.trim(), last4 } },
-    update: { nickname: typeof nickname === 'string' ? nickname.trim() || null : null },
-    create: { userId: uid, bank: bank.trim(), last4, nickname: typeof nickname === 'string' ? nickname.trim() || null : null }
+    update: { nickname: typeof nickname === 'string' ? nickname.trim() || null : null, type: cardType },
+    create: { userId: uid, bank: bank.trim(), last4, nickname: typeof nickname === 'string' ? nickname.trim() || null : null, type: cardType }
   })
 
   log.info({ uid, bank: bank.trim(), last4 }, 'card added')
