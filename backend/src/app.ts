@@ -56,9 +56,10 @@ app.post('/dev/parse-sms', async (c) => {
 app.use('*', authMiddleware)
 
 // Per-UID rate limiting: 60 requests/min on sync, 120/min on others
+// LOAD TEST: limits raised to 100k — revert after testing
 app.use('/sync/*', async (c, next) => {
   const uid = (c as any).get('uid') as string | undefined
-  if (uid && !rateLimit(uid, 60, 60_000)) {
+  if (uid && !rateLimit(uid, 100_000, 60_000)) {
     log.warn({ uid }, 'sync rate limit exceeded')
     return c.json({ error: 'Rate limit exceeded. Try again in a minute.' }, 429)
   }
@@ -67,7 +68,7 @@ app.use('/sync/*', async (c, next) => {
 
 app.use('*', async (c, next) => {
   const uid = (c as any).get('uid') as string | undefined
-  if (uid && !rateLimit(`${uid}:general`, 120, 60_000)) {
+  if (uid && !rateLimit(`${uid}:general`, 100_000, 60_000)) {
     return c.json({ error: 'Rate limit exceeded.' }, 429)
   }
   await next()
