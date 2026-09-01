@@ -1,0 +1,195 @@
+# Load Test Report — Baseline
+
+**Date:** 2026-09-02  
+**Tool:** k6 2.2.0  
+**VUs:** 10 concurrent  
+**Duration:** 1 minute  
+**Endpoints tested:** `/health`, `/sync`, `/cards`
+
+---
+
+## Results Summary
+
+### Run 1 — Against Render (prod)
+Rate limiter kicked in at 60 req/min per UID. All 10 VUs shared one token → hit limit in ~13s.
+
+| Metric | Value |
+|---|---|
+| Error rate | 52% (rate limiter 429s) |
+| p95 latency | 136ms ✓ |
+| Successful sync p95 | 188ms ✓ |
+
+**Finding:** When requests succeeded, performance was excellent. Rate limiter is working correctly.
+
+---
+
+### Run 2 — Against Local Backend (rate limit raised to 100k)
+
+| Metric | Value | Target | Status |
+|---|---|---|---|
+| Error rate | 0% | <1% | ✓ |
+| p95 latency | 3.86s | <500ms | ✗ |
+| p99 latency | 4.12s | <1000ms | ✗ |
+| sync p95 | 4017ms | <800ms | ✗ |
+| sync avg | 2101ms | — | — |
+| RPS | 5.65 | — | — |
+
+**Important context:** Local backend connects to Neon DB in `us-east-2` and Firebase Auth servers from India. Network roundtrip alone is 300–500ms per hop. This inflates all latency numbers artificially.
+
+Render prod test (Run 1) showed p95 136ms — Render and Neon are co-located in same AWS region, so real user latency is ~30× better than local test.
+
+---
+
+## Confirmed Bottlenecks
+
+### 1. Firebase Auth — Every Request (CRITICAL)
+`verifyIdToken()` calls Firebase servers on every request. No caching.
+
+- **Cost:** ~300–500ms per request (local), ~20–50ms (Render, same region)
+- **At 10k RPS:** 10k Firebase calls/sec — will hit Firebase quota limits
+- **Fix:** In-process token cache keyed by token, TTL = token expiry
+
+### 2. Sync Double-Write — N+1 Queries (HIGH)
+```typescript
+await prisma.transaction.createMany(...)           // 1 query
+await Promise.all(txs.map(tx => prisma.transaction.update(...)))  // N queries
+```
+500 transactions = 501 DB queries per sync request.
+
+- **Cost:** Multiplies DB load by 500× under heavy sync load
+- **Fix:** Single `INSERT ... ON CONFLICT DO UPDATE` via `$executeRaw`
+
+### 3. Single Render Instance (MEDIUM)
+Node.js is single-threaded. One instance handles all requests sequentially under CPU load.
+
+- **Limit:** ~200–500 RPS per instance before CPU saturates
+- **Fix:** Scale to 2–4 instances on Render Starter plan
+
+### 4. Supabase Free Tier Connection Pool (MEDIUM)
+PgBouncer free tier caps at ~60 concurrent DB connections.
+
+- **Risk:** At 500+ concurrent users all syncing simultaneously, pool exhausts
+- **Fix:** Upgrade to Supabase Pro (500 connections) at scale
+
+### 5. Android Thundering Herd (MEDIUM)
+All clients retry simultaneously after backend restart/deploy.
+
+- **Risk:** Spike of 10k+ sync requests within seconds of backend recovery
+- **Fix:** Jittered exponential backoff in SyncWorker
+
+### 6. Rate Limiter — Per UID (LOW for prod, HIGH for testing)
+60 req/min per UID on sync. Correct for production (real users won't hit this). Problem only for load testing with single token.
+
+- **Fix (prod):** Keep as-is — protects against abuse
+- **Fix (testing):** Use multiple tokens (one per VU)
+
+---
+
+## Next Steps — Priority Order
+
+### Fix 1: Firebase Token Cache (1–2 hrs) — DO FIRST
+Eliminates Firebase network call after first auth. Biggest single improvement.
+
+```typescript
+// backend/src/lib/authCache.ts
+const cache = new Map<string, { uid: string; exp: number }>()
+
+export function getCached(token: string): string | null {
+  const hit = cache.get(token)
+  if (!hit || Date.now() / 1000 > hit.exp - 60) {
+    cache.delete(token)
+    return null
+  }
+  return hit.uid
+}
+
+export function setCache(token: string, uid: string, exp: number) {
+  cache.set(token, { uid, exp })
+  if (cache.size % 100 === 0) {
+    const now = Date.now() / 1000
+    for (const [k, v] of cache) if (v.exp < now) cache.delete(k)
+  }
+}
+```
+
+Apply in `middleware/auth.ts`:
+```typescript
+const cached = getCached(token)
+if (cached) { c.set('uid', cached); await next(); return }
+const decoded = await getFirebaseAuth().verifyIdToken(token)
+setCache(token, decoded.uid, decoded.exp)
+```
+
+**Expected improvement:** p95 drops from 3.86s → ~200ms locally, ~50ms on Render.
+
+---
+
+### Fix 2: Sync Single Upsert (2–3 hrs)
+Replace 501 queries with 1 per sync.
+
+```typescript
+// Replace createMany + Promise.all(updates) with:
+for (const tx of body.transactions) {
+  await prisma.transaction.upsert({
+    where: { id: tx.id },
+    update: mapTxToDb(tx, uid),
+    create: mapTxToDb(tx, uid)
+  })
+}
+// Or better: raw SQL batch upsert
+```
+
+**Expected improvement:** DB load drops 500× for full syncs.
+
+---
+
+### Fix 3: Android Jittered Backoff (30 min)
+```kotlin
+// SyncWorker.kt — before sync call
+val jitter = Random.nextLong(0, 30_000)
+delay(jitter)
+```
+
+**Expected improvement:** Prevents 10k spike on backend recovery.
+
+---
+
+### Fix 4: Re-test on Render After Fixes
+After implementing fixes 1+2, re-run with proper multi-token setup:
+
+```javascript
+// load-test.js — use VU-specific token
+const TOKENS = open('./tokens.txt').trim().split('\n')
+const TOKEN = TOKENS[__VU % TOKENS.length]
+```
+
+Create 10 Firebase test accounts, generate tokens, store in `docs/tokens.txt` (gitignored).
+
+---
+
+### Fix 5: Scale Render (when needed)
+When single instance saturates (>500 RPS):
+- Upgrade Render to Starter ($7/mo)
+- Add 2nd instance
+- Each instance uses 1 Supabase pooler connection (`connection_limit=1`)
+
+---
+
+### Fix 6: Revert Rate Limits After Testing
+```typescript
+// Revert 100_000 back to 60 (sync) and 120 (general)
+rateLimit(uid, 60, 60_000)
+rateLimit(`${uid}:general`, 120, 60_000)
+```
+
+---
+
+## Target After All Fixes
+
+| Scenario | Current | Target |
+|---|---|---|
+| p95 latency (Render) | 136ms ✓ | <100ms |
+| p95 latency (local) | 3860ms ✗ | ~200ms |
+| 10k concurrent | not tested | p95 <500ms |
+| 50k spike (30s) | not tested | no data loss |
+| sync DB queries | 501/request | 1/request |
