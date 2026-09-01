@@ -1,6 +1,5 @@
 import { createMiddleware } from 'hono/factory'
 import { getFirebaseAuth } from '../lib/firebase'
-import log from '../lib/logger'
 import type { AppVariables } from '../types'
 
 export const authMiddleware = createMiddleware<{ Variables: AppVariables }>(
@@ -13,7 +12,6 @@ export const authMiddleware = createMiddleware<{ Variables: AppVariables }>(
     try {
       const decoded = await getFirebaseAuth().verifyIdToken(token)
       c.set('uid', decoded.uid)
-      log.info({ uid: decoded.uid, token: token.slice(-12) }, 'auth ok — use last 12 chars to identify token')
       await next()
     } catch {
       return c.json({ error: 'Invalid token' }, 401)
