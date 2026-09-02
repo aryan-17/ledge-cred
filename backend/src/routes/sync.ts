@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { Prisma } from '@prisma/client'
 import { getPrisma } from '../lib/prisma'
 import log from '../lib/logger'
 import type {
@@ -119,21 +120,71 @@ syncRoute.post('/', async (c) => {
   // Ensure user row exists — handles fresh DB where register hasn't been called yet
   await prisma.user.upsert({ where: { uid }, update: {}, create: { uid } })
 
-  // Batch upsert: createMany for new rows, then update existing ones in parallel
+  // Single bulk upsert per entity type — 1 DB roundtrip regardless of row count
   if (body.transactions.length > 0) {
-    const txData = body.transactions.map(tx => mapTxToDb(tx, uid))
-    await prisma.transaction.createMany({ data: txData, skipDuplicates: true })
-    await Promise.all(body.transactions.map(tx =>
-      prisma.transaction.update({ where: { id: tx.id }, data: mapTxToDb(tx, uid) }).catch(() => {})
-    ))
+    const vals = body.transactions.map(tx => Prisma.sql`(
+      ${tx.id}, ${uid}, ${BigInt(tx.amountPaise)}, ${tx.type},
+      ${tx.cardLast4 ?? null}, ${tx.bank}, ${new Date(tx.txnTime)},
+      ${tx.dedupeHash}, ${tx.matchedSettleEventId ?? null},
+      ${tx.suggestedType ?? null}, ${tx.suggestedConfidence ?? null},
+      ${tx.reviewed ?? false},
+      ${tx.settledAt ? new Date(tx.settledAt) : null},
+      ${new Date(tx.updatedAt)},
+      ${tx.deletedAt ? new Date(tx.deletedAt) : null}
+    )`)
+    await prisma.$executeRaw`
+      INSERT INTO "Transaction"
+        (id, "userId", "amountPaise", type, "cardLast4", bank, "txnTime",
+         "dedupeHash", "matchedSettleEventId", "suggestedType", "suggestedConfidence",
+         reviewed, "settledAt", "updatedAt", "deletedAt")
+      VALUES ${Prisma.join(vals)}
+      ON CONFLICT (id) DO UPDATE SET
+        "userId"               = EXCLUDED."userId",
+        "amountPaise"          = EXCLUDED."amountPaise",
+        type                   = EXCLUDED.type,
+        "cardLast4"            = EXCLUDED."cardLast4",
+        bank                   = EXCLUDED.bank,
+        "txnTime"              = EXCLUDED."txnTime",
+        "dedupeHash"           = EXCLUDED."dedupeHash",
+        "matchedSettleEventId" = EXCLUDED."matchedSettleEventId",
+        "suggestedType"        = EXCLUDED."suggestedType",
+        "suggestedConfidence"  = EXCLUDED."suggestedConfidence",
+        reviewed               = EXCLUDED.reviewed,
+        "settledAt"            = EXCLUDED."settledAt",
+        "updatedAt"            = EXCLUDED."updatedAt",
+        "deletedAt"            = EXCLUDED."deletedAt"
+    `
   }
 
   if (body.settleEvents.length > 0) {
-    const seData = body.settleEvents.map(se => mapSeToDb(se, uid))
-    await prisma.settleEvent.createMany({ data: seData, skipDuplicates: true })
-    await Promise.all(body.settleEvents.map(se =>
-      prisma.settleEvent.update({ where: { id: se.id }, data: mapSeToDb(se, uid) }).catch(() => {})
-    ))
+    const vals = body.settleEvents.map(se => Prisma.sql`(
+      ${se.id}, ${uid}, ${se.parentRef}, ${se.suffix ?? null}, ${se.status},
+      ${BigInt(se.requestedAmountPaise)}, ${BigInt(se.pendingSnapshotPaise)},
+      ${new Date(se.createdAt)},
+      ${se.clearedAt ? new Date(se.clearedAt) : null},
+      ${se.clearedAmountPaise != null ? BigInt(se.clearedAmountPaise) : null},
+      ${new Date(se.updatedAt)},
+      ${se.deletedAt ? new Date(se.deletedAt) : null}
+    )`)
+    await prisma.$executeRaw`
+      INSERT INTO "SettleEvent"
+        (id, "userId", "parentRef", suffix, status,
+         "requestedAmountPaise", "pendingSnapshotPaise",
+         "createdAt", "clearedAt", "clearedAmountPaise", "updatedAt", "deletedAt")
+      VALUES ${Prisma.join(vals)}
+      ON CONFLICT (id) DO UPDATE SET
+        "userId"               = EXCLUDED."userId",
+        "parentRef"            = EXCLUDED."parentRef",
+        suffix                 = EXCLUDED.suffix,
+        status                 = EXCLUDED.status,
+        "requestedAmountPaise" = EXCLUDED."requestedAmountPaise",
+        "pendingSnapshotPaise" = EXCLUDED."pendingSnapshotPaise",
+        "createdAt"            = EXCLUDED."createdAt",
+        "clearedAt"            = EXCLUDED."clearedAt",
+        "clearedAmountPaise"   = EXCLUDED."clearedAmountPaise",
+        "updatedAt"            = EXCLUDED."updatedAt",
+        "deletedAt"            = EXCLUDED."deletedAt"
+    `
   }
 
   const [transactions, settleEvents] = await Promise.all([
