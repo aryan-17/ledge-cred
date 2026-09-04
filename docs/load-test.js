@@ -51,11 +51,37 @@ const SYNC_BODY = JSON.stringify({
   settleEvents: []
 });
 
+// Heavy sync: 100 transactions per VU, stable IDs (tests ON CONFLICT UPDATE path)
+// UUIDs are per-VU so each test user owns their own set of 100 rows
+function makeHeavyBody(vu) {
+  const pad8  = (n) => n.toString(16).padStart(8,  '0');
+  const pad4  = (n) => n.toString(16).padStart(4,  '0');
+  const pad12 = (n) => n.toString(16).padStart(12, '0');
+  const now = new Date().toISOString();
+  const txns = Array.from({ length: 100 }, (_, i) => ({
+    id:          `${pad8(vu)}-${pad4(i)}-4000-8000-${pad12(vu * 100 + i)}`,
+    amountPaise: 50000 + i,
+    type:        'DEBIT',
+    bank:        'HDFC',
+    txnTime:     now,
+    dedupeHash:  `hash-vu${vu}-tx${i}`,
+    updatedAt:   now,
+    cardLast4:   null,
+    deletedAt:   null,
+    settledAt:   null,
+  }));
+  return JSON.stringify({ lastSyncedAt: null, transactions: txns, settleEvents: [] });
+}
+
+const HEAVY = !!__ENV.HEAVY;
+// Build per-VU body at init time (VU is constant per goroutine)
+const SYNC_BODY_HEAVY = HEAVY ? makeHeavyBody(__VU) : null;
+
 export default function () {
   const headers = getHeaders();
 
-  // Sync (primary load)
-  const sync = http.post(`${BASE_URL}/sync`, SYNC_BODY, { headers });
+  // Sync (primary load) — HEAVY=1 sends 100 transactions per request
+  const sync = http.post(`${BASE_URL}/sync`, HEAVY ? SYNC_BODY_HEAVY : SYNC_BODY, { headers });
   check(sync, { 'sync 200': (r) => r.status === 200 });
   errorRate.add(sync.status !== 200);
   syncDuration.add(sync.timings.duration);

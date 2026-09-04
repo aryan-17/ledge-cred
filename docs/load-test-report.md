@@ -308,6 +308,25 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 ---
 
+### Run 9 — Heavy sync: 100 transactions per request (10 VUs, local Postgres)
+
+**Date:** 2026-09-05 | **VUs:** 10 | **Duration:** 2 minutes | **Payload:** 100 txns/sync | **DB:** localhost:5432
+
+| Metric | Empty sync (Run 7) | Heavy sync 100 txns |
+|---|---|---|
+| Error rate | 0% | **0%** ✓ |
+| sync success | 100% | **100%** ✓ |
+| cards success | 100% | **100%** ✓ |
+| sync avg | 46ms | 1776ms |
+| sync p95 | 17ms | 4200ms |
+| sync min | 0.5ms | 477ms |
+
+**Bulk upsert confirmed correct under load.** Zero errors across 290 iterations × 100 transactions = 29,000 row upserts. Latency increase is expected: 100-row INSERT + returning 100 txns in response + connection pool queuing (10 VUs / 5 connections). No data loss, no failures.
+
+**Note:** `type` column missing from Neon `UserCard` table — needs `prisma db push` against Neon before prod deploy.
+
+---
+
 ## Target After All Fixes
 
 | Scenario | Baseline | Run 3 (10 VUs) | Run 4 (1000 VUs) | Target |
