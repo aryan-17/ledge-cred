@@ -10,9 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "prisma migrate deploy",
-    "db:push": "prisma db push --env-file .env",
-    "db:push:qa": "prisma db push --env-file .env.qa",
-    "db:push:prod": "prisma db push --env-file .env.production"
+    "db:push": "prisma db push",
+    "db:push:qa": "npx dotenv-cli -e .env.qa -- prisma db push",
+    "db:push:prod": "npx dotenv-cli -e .env.production -- prisma db push"
   },
   "keywords": [],
   "author": "",
