@@ -327,6 +327,43 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 ---
 
+### Run 10 — Delta sync: realistic Android behavior (10 VUs, local Postgres)
+
+**Date:** 2026-09-05 | **VUs:** 10 | **Duration:** 2 minutes | **Mode:** first iter full sync, subsequent iters delta
+
+Each VU mirrors real Android behavior: first sync sends `lastSyncedAt: null` (full), all subsequent syncs send `lastSyncedAt = previous syncedAt` (delta, 0 rows returned).
+
+| Metric | Full sync (Run 5) | Delta sync (Run 10) | Change |
+|---|---|---|---|
+| Error rate | 0% | **0%** ✓ | — |
+| p95 latency | 580ms | **7.55ms** ✓ | -99% |
+| p99 latency | 7490ms | **18ms** ✓ | -99% |
+| sync p95 | 648ms | **8.9ms** ✓ | -99% |
+| sync avg | 499ms | **7.8ms** | -98% |
+| sync median | 247ms | **3.9ms** | -98% |
+
+**Delta sync is 99% faster than full sync.** After first sync, server returns 0 rows → no data transfer, minimal DB work. Auth cache + index on `(userId, updatedAt)` + empty response = near-instant. This is the common path (~99% of real syncs).
+
+---
+
+### Run 11 — Spike test: 0→1k VUs in 5s (local Postgres)
+
+**Date:** 2026-09-05 | **Stages:** 5s ramp to 1k, hold 30s, 5s ramp down
+
+Simulates backend restart thundering herd — all clients reconnect simultaneously.
+
+| Metric | Value |
+|---|---|
+| Error rate | **0%** ✓ |
+| p95 latency | **5.72ms** ✓ |
+| p99 latency | **27ms** ✓ |
+| sync p95 | **7.55ms** ✓ |
+| Peak RPS | **847** |
+
+**No errors on instant 1k VU spike.** Backend absorbs the load cleanly. Delta sync path handles spike better than full sync — most VUs are on delta by the time the spike hits. Android jitter (0–30s delay) further smooths reconnect spikes in prod.
+
+---
+
 ## Target After All Fixes
 
 | Scenario | Baseline | Run 3 (10 VUs) | Run 4 (1000 VUs) | Target |

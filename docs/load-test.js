@@ -75,16 +75,31 @@ function makeHeavyBody(vu) {
 
 const HEAVY = !!__ENV.HEAVY;
 // Build per-VU body at init time (VU is constant per goroutine)
-const SYNC_BODY_HEAVY = HEAVY ? makeHeavyBody(__VU) : null;
+const HEAVY_TXNS = HEAVY ? JSON.parse(makeHeavyBody(__VU)).transactions : [];
+
+// Per-VU delta tracking: mirrors real Android behavior
+// First iteration → full sync (null lastSyncedAt), subsequent → delta (lastSyncedAt = prev syncedAt)
+let lastSyncedAt = null;
 
 export default function () {
   const headers = getHeaders();
 
-  // Sync (primary load) — HEAVY=1 sends 100 transactions per request
-  const sync = http.post(`${BASE_URL}/sync`, HEAVY ? SYNC_BODY_HEAVY : SYNC_BODY, { headers });
+  // Build body: first sync is full (with txns if HEAVY), delta syncs send no txns
+  const body = JSON.stringify({
+    lastSyncedAt,
+    transactions: lastSyncedAt === null ? HEAVY_TXNS : [],
+    settleEvents: [],
+  });
+
+  const sync = http.post(`${BASE_URL}/sync`, body, { headers });
   check(sync, { 'sync 200': (r) => r.status === 200 });
   errorRate.add(sync.status !== 200);
   syncDuration.add(sync.timings.duration);
+
+  // Track syncedAt for delta on next iteration
+  if (sync.status === 200) {
+    try { lastSyncedAt = JSON.parse(sync.body).syncedAt; } catch {}
+  }
 
   // Cards
   const cards = http.get(`${BASE_URL}/cards`, { headers });
