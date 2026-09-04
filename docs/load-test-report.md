@@ -280,7 +280,31 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 **This does NOT reflect prod behavior.** On Render (co-located with Neon, ~5-10ms RTT), the same Node instance completes requests 30-60× faster — same instance handles 30-60× more concurrent load before saturating.
 
-**Conclusion: Local load testing is only meaningful up to ~50-100 VUs.** Use local tests for latency regression checks, not capacity planning. Use a local Postgres DB (Docker) for high-VU local tests.
+**Conclusion: Local load testing is only meaningful up to ~50-100 VUs with remote DB.** Use local tests for latency regression checks, not capacity planning. Use a local Postgres DB (Homebrew/Docker) for high-VU local tests.
+
+---
+
+### Run 7 — 1k VUs, local Postgres (Homebrew pg14)
+
+**Date:** 2026-09-04 | **VUs:** 1000 | **Duration:** 2 minutes | **DB:** localhost:5432
+
+| Metric | Neon remote (Run 4) | **Local Postgres (Run 7)** |
+|---|---|---|
+| Error rate | 81% | **0%** ✓ |
+| p95 latency | 11,680ms | **9ms** ✓ |
+| p99 latency | 21,170ms | **70ms** ✓ |
+| sync p95 | 21,124ms | **17ms** ✓ |
+| sync avg | — | **46ms** |
+| sync median | — | **1.2ms** |
+| RPS | 83 | **955** |
+
+**All thresholds pass.** Single Node.js instance handles 1k VUs trivially with local DB. Confirmed: bottleneck was always DB network latency (~300ms India→Neon), never code or Node.js capacity.
+
+**Run 8 — 5k VUs attempt:** Hit Mac OS TCP socket backlog limit (`kern.ipc.somaxconn=128`). `dial: i/o timeout` errors at ~3k+ simultaneous connections. Not a Node.js or app limit — Linux (Render) default is 65535+. Local Mac testing ceiling is **~1k VUs**.
+
+**Local testing strategy going forward:**
+- Use local Postgres + ≤1k VUs for regression testing
+- 5k+ VU testing requires Linux environment or Render
 
 ---
 
