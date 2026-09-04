@@ -20,7 +20,10 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://ledge-cred.onrender.com';
+// Round-robin across multiple base URLs if BASE_URLS env provided (comma-separated)
+// e.g. BASE_URLS=http://localhost:3000,http://localhost:3001
+const _urls = (__ENV.BASE_URLS || __ENV.BASE_URL || 'https://ledge-cred.onrender.com').split(',');
+const BASE_URL = _urls[(__VU - 1) % _urls.length];
 
 // Multi-token: load from tokens.txt (one per line) or fall back to single TOKEN env var.
 // Each VU picks a token by index so rate limits apply per-user, not all on one UID.
@@ -50,11 +53,6 @@ const SYNC_BODY = JSON.stringify({
 
 export default function () {
   const headers = getHeaders();
-
-  // Health
-  const health = http.get(`${BASE_URL}/health`);
-  check(health, { 'health 200': (r) => r.status === 200 });
-  errorRate.add(health.status !== 200);
 
   // Sync (primary load)
   const sync = http.post(`${BASE_URL}/sync`, SYNC_BODY, { headers });

@@ -233,6 +233,36 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 ---
 
+### Run 5 — 10 VUs, uid cache + connection_limit=5, sync+cards only
+
+**Date:** 2026-09-04 | **VUs:** 10 | **Duration:** 2 minutes | **Target:** localhost:3000
+
+| Metric | Run 3 (10 VUs) | **Run 5** | Change |
+|---|---|---|---|
+| Error rate | 0% | **0%** | — |
+| p95 latency | 1700ms | **580ms** | -66% ✓ |
+| p99 latency | 5000ms | 7490ms | cold start spike |
+| sync p95 | 2130ms | **648ms ✓** | -70% |
+| sync avg | 1568ms | **499ms** | -68% |
+| median latency | 243ms | **247ms** | — |
+| RPS | 6.88 | **6.99** | +2% |
+
+**sync p95 648ms now passes the 800ms threshold.**
+
+**Changes that drove improvement:**
+- uid existence cache in sync route — saves 1 DB roundtrip (~300ms) on every request after first call per UID
+- `connection_limit=5` in DATABASE_URL — 5 parallel DB queries in-flight per instance
+- Removed `/health` from load test — isolated sync+cards latency accurately
+
+**p99 spike to 7.49s = Neon autosuspend cold start**, confirmed in Neon monitoring. Endpoint was idle >5 min before test, first connection paid wake penalty. Not a code issue. Fix: disable autosuspend or keepalive ping.
+
+**Neon monitoring confirmed:**
+- Peak pooler connections: 21 (during 1000 VU run) — DB never saturated
+- DB CPU: ~2% — DB was never the bottleneck
+- Cache hit rate: 100% after warmup — all data in shared buffers
+
+---
+
 ## Target After All Fixes
 
 | Scenario | Baseline | Run 3 (10 VUs) | Run 4 (1000 VUs) | Target |

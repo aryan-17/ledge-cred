@@ -14,6 +14,9 @@ import type {
 
 export const syncRoute = new Hono<{ Variables: AppVariables }>()
 
+// ponytail: in-process set; resets on restart, but user.upsert handles that case correctly
+const knownUsers = new Set<string>()
+
 // Wipe all cloud data for this user — called before full local→cloud re-sync when switching DBs
 syncRoute.delete('/reset', async (c) => {
   const uid = c.get('uid')
@@ -117,8 +120,11 @@ syncRoute.post('/', async (c) => {
   const since = body.lastSyncedAt ? new Date(body.lastSyncedAt) : new Date(0)
   log.info({ uid, txCount: body.transactions.length, seCount: body.settleEvents.length, since, sample: body.transactions[0] ?? null }, 'sync start')
 
-  // Ensure user row exists — handles fresh DB where register hasn't been called yet
-  await prisma.user.upsert({ where: { uid }, update: {}, create: { uid } })
+  // Ensure user row exists — skip if already seen this session (cache survives restart gap via upsert)
+  if (!knownUsers.has(uid)) {
+    await prisma.user.upsert({ where: { uid }, update: {}, create: { uid } })
+    knownUsers.add(uid)
+  }
 
   // Single bulk upsert per entity type — 1 DB roundtrip regardless of row count
   if (body.transactions.length > 0) {
