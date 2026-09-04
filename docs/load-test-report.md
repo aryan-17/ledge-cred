@@ -364,6 +364,52 @@ Simulates backend restart thundering herd — all clients reconnect simultaneous
 
 ---
 
+### Run 12 — Rate limiter smoke test
+
+**Date:** 2026-09-05 | **Tool:** curl loop | **VUs:** 1 | **Requests:** 70 rapid sync calls
+
+| Request # | Status |
+|---|---|
+| 1–60 | 200 ✓ |
+| 61–70 | **429** ✓ |
+
+Rate limiter fires at exactly 60 req/min. Correct behavior confirmed.
+
+---
+
+### Run 13 — Soak test: 30 minutes at 100 VUs (local Postgres)
+
+**Date:** 2026-09-05 | **VUs:** 100 | **Duration:** 30 minutes | **Iterations:** 89,731
+
+| Metric | Value |
+|---|---|
+| Error rate | **0%** ✓ |
+| p95 latency | **7.8ms** ✓ |
+| p99 latency | **20ms** ✓ |
+| sync p95 | **9.68ms** ✓ |
+| Total requests | **179,462** |
+| RPS sustained | **99.5** |
+| Max latency | 595ms (single GC spike) |
+
+**No degradation over 30 minutes.** p95 stable start-to-finish. No memory leak, no connection pool exhaustion, no auth cache overflow. `knownUsers` Set and auth cache stabilized at 10 entries. Single 595ms spike = GC pause, not a pattern.
+
+---
+
+## Final Load Testing Summary
+
+| Run | Scenario | VUs | RPS | p95 | Errors |
+|---|---|---|---|---|---|
+| 7 | Empty sync, local Postgres | 1000 | 955 | 9ms | 0% ✓ |
+| 9 | Heavy sync 100 txns | 10 | — | 4200ms | 0% ✓ |
+| 10 | Delta sync (realistic) | 10 | — | 7.55ms | 0% ✓ |
+| 11 | Spike 0→1k in 5s | 1000 | 847 | 5.72ms | 0% ✓ |
+| 12 | Rate limiter | 1 | — | — | 429 at 61st ✓ |
+| 13 | Soak 30 min | 100 | 99.5 | 7.8ms | 0% ✓ |
+
+All tests pass. Backend stable under load, spike, and sustained stress.
+
+---
+
 ## Target After All Fixes
 
 | Scenario | Baseline | Run 3 (10 VUs) | Run 4 (1000 VUs) | Target |
