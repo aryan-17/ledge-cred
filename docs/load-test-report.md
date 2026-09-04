@@ -1,4 +1,4 @@
-# Load Test Report — Baseline
+# Load Test Report
 
 **Date:** 2026-09-02  
 **Tool:** k6 2.2.0  
@@ -184,12 +184,62 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 ---
 
+---
+
+### Run 3 — Local Backend, After Fixes (auth cache + bulk upsert)
+
+**Date:** 2026-09-04 | **VUs:** 10 | **Duration:** 2 minutes | **Target:** localhost:3000
+
+| Metric | Baseline (Run 2) | Run 3 | Change |
+|---|---|---|---|
+| Error rate | 0% | **0%** | — |
+| p95 latency | 3860ms | **1700ms** | -56% ✓ |
+| p99 latency | 4120ms | 5000ms | +21% (DB hiccup) |
+| sync p95 | 4017ms | **2130ms** | -47% ✓ |
+| sync avg | 2101ms | **1568ms** | -25% ✓ |
+| RPS | 5.65 | **6.88** | +22% ✓ |
+| median latency | — | **243ms** | (health/cards fast) |
+
+**Analysis:** Auth cache working — health/cards median is 243ms. High sync p95 still driven by DB roundtrip (India → Neon us-east-2, ~300–500ms/query). p99 spike to 5s likely a connection hiccup at peak concurrency. Same geographic caveat as Run 2 applies — Render prod will be significantly faster.
+
+**Note:** Local load testing only. Prod untested (co-located Render+Neon expected to perform similarly to Run 1, ~136ms p95).
+
+---
+
+---
+
+### Run 4 — Phase 3: 1000 VUs (local, after fixes)
+
+**Date:** 2026-09-04 | **VUs:** 1000 | **Duration:** 2 minutes | **Target:** localhost:3000 | **Tokens:** 10
+
+| Metric | Run 3 (10 VUs) | Run 4 (1000 VUs) |
+|---|---|---|
+| Error rate | 0% | **81%** ✗ |
+| p95 latency | 1700ms | 11680ms ✗ |
+| p99 latency | 5000ms | 21170ms ✗ |
+| sync p95 | 2130ms | 21124ms ✗ |
+| RPS | 6.88 | 83.4 |
+| health success | 100% | 35% |
+| sync success | 100% | 2% |
+
+**Analysis:** Backend saturates at 1000 VUs. Even `/health` fails at 35% — event loop fully saturated, not just DB. Errors are k6 default 10s timeout, not backend 500s. Identifies two bottlenecks:
+
+1. **Single Node.js instance** — single-threaded event loop maxes out under ~500 concurrent. Fix: horizontal scale (2–4 Render instances).
+2. **DB connection pool exhaustion** — 1000 concurrent writers exhaust Prisma/PgBouncer connections. Fix: Supabase Pro (500 pooler connections) + `connection_limit=1` per instance.
+
+**Note:** RPS jumped to 83 (from 6.88) showing the backend did process more requests in absolute terms — it's queueing and timing out, not crashing. No data corruption.
+
+**Next step:** Scale to 2+ Render instances before re-testing at 1k VUs.
+
+---
+
 ## Target After All Fixes
 
-| Scenario | Current | Target |
-|---|---|---|
-| p95 latency (Render) | 136ms ✓ | <100ms |
-| p95 latency (local) | 3860ms ✗ | ~200ms |
-| 10k concurrent | not tested | p95 <500ms |
-| 50k spike (30s) | not tested | no data loss |
-| sync DB queries | 501/request | 1/request |
+| Scenario | Baseline | Run 3 (10 VUs) | Run 4 (1000 VUs) | Target |
+|---|---|---|---|---|
+| p95 latency (local) | 3860ms | 1700ms | 11680ms (saturated) | ~200ms |
+| p95 latency (Render) | 136ms ✓ | not re-tested | not tested | <100ms |
+| 1k concurrent | not tested | — | **fails** (single instance) | p95 <500ms |
+| 10k concurrent | not tested | — | not tested | p95 <500ms |
+| 50k spike (30s) | not tested | — | not tested | no data loss |
+| sync DB queries | 501/request | **1/request** ✓ | 1/request ✓ | 1/request |

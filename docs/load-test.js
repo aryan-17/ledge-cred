@@ -21,12 +21,26 @@ export const options = {
 };
 
 const BASE_URL = __ENV.BASE_URL || 'https://ledge-cred.onrender.com';
-const TOKEN = __ENV.TOKEN;
 
-const HEADERS = {
-  'Authorization': `Bearer ${TOKEN}`,
-  'Content-Type': 'application/json',
-};
+// Multi-token: load from tokens.txt (one per line) or fall back to single TOKEN env var.
+// Each VU picks a token by index so rate limits apply per-user, not all on one UID.
+const TOKENS = (() => {
+  try {
+    return open('./tokens.txt').trim().split('\n').map(t => t.trim()).filter(Boolean);
+  } catch {
+    const t = __ENV.TOKEN;
+    if (!t) throw new Error('Set TOKEN env var or create docs/tokens.txt');
+    return [t.trim()];
+  }
+})();
+
+function getHeaders() {
+  const token = TOKENS[(__VU - 1) % TOKENS.length];
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
 
 const SYNC_BODY = JSON.stringify({
   lastSyncedAt: null,
@@ -35,19 +49,21 @@ const SYNC_BODY = JSON.stringify({
 });
 
 export default function () {
+  const headers = getHeaders();
+
   // Health
   const health = http.get(`${BASE_URL}/health`);
   check(health, { 'health 200': (r) => r.status === 200 });
   errorRate.add(health.status !== 200);
 
   // Sync (primary load)
-  const sync = http.post(`${BASE_URL}/sync`, SYNC_BODY, { headers: HEADERS });
+  const sync = http.post(`${BASE_URL}/sync`, SYNC_BODY, { headers });
   check(sync, { 'sync 200': (r) => r.status === 200 });
   errorRate.add(sync.status !== 200);
   syncDuration.add(sync.timings.duration);
 
   // Cards
-  const cards = http.get(`${BASE_URL}/cards`, { headers: HEADERS });
+  const cards = http.get(`${BASE_URL}/cards`, { headers });
   check(cards, { 'cards 200': (r) => r.status === 200 });
   errorRate.add(cards.status !== 200);
 
