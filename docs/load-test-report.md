@@ -229,7 +229,7 @@ rateLimit(`${uid}:general`, 120, 60_000)
 
 **Note:** RPS jumped to 83 (from 6.88) showing the backend did process more requests in absolute terms — it's queueing and timing out, not crashing. No data corruption.
 
-**Next step:** Scale to 2+ Render instances before re-testing at 1k VUs.
+**Next step (revised):** Local 1k VU testing not meaningful — see Run 6.
 
 ---
 
@@ -260,6 +260,27 @@ rateLimit(`${uid}:general`, 120, 60_000)
 - Peak pooler connections: 21 (during 1000 VU run) — DB never saturated
 - DB CPU: ~2% — DB was never the bottleneck
 - Cache hit rate: 100% after warmup — all data in shared buffers
+
+---
+
+### Run 6 — 2 Node instances, 1k VUs (local)
+
+**Date:** 2026-09-04 | **VUs:** 1000 | **Instances:** 2 (port 3000 + 3001) | **Duration:** 2 minutes
+
+| Metric | Run 4 (1 instance) | Run 6 (2 instances) |
+|---|---|---|
+| Error rate | 81% | **99.4%** |
+| RPS | 83 | 82 |
+| sync success | 2% | 0.08% |
+| p95 latency | 11680ms | 15080ms |
+
+**Finding: 2 instances provided zero improvement locally.** RPS stayed at ~83. k6 splits VUs per-instance at startup (500 each), and 500 VUs still overwhelms each instance individually — same saturation point as 1000 VUs on one instance.
+
+**Root cause of local saturation:** DB roundtrip India → Neon us-east-2 is ~300ms. Each request holds the async chain open for that duration. At 500 VUs per instance the queue builds faster than it drains regardless of instance count.
+
+**This does NOT reflect prod behavior.** On Render (co-located with Neon, ~5-10ms RTT), the same Node instance completes requests 30-60× faster — same instance handles 30-60× more concurrent load before saturating.
+
+**Conclusion: Local load testing is only meaningful up to ~50-100 VUs.** Use local tests for latency regression checks, not capacity planning. Use a local Postgres DB (Docker) for high-VU local tests.
 
 ---
 
