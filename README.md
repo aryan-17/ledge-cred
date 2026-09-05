@@ -21,7 +21,7 @@ No bank API is available to individual developers in India. SMS alerts are the o
 | Auth | Firebase Auth (Google sign-in) |
 | Backend | Node.js + TypeScript + Hono |
 | ORM | Prisma |
-| Database | PostgreSQL (Neon) |
+| Database | PostgreSQL (Supabase prod / Neon QA / local dev) |
 | Push | FCM via Firebase Admin SDK |
 | Deploy | Render (backend) |
 
@@ -57,8 +57,24 @@ docs/      — Architecture docs and implementation plans
 cd backend
 npm install
 cp .env.example .env   # fill in DATABASE_URL, FIREBASE_SERVICE_ACCOUNT
-npx prisma migrate dev --name init
-npm run dev            # starts on localhost:3000
+npx prisma db push
+npm run dev            # dev: local Postgres on localhost:3000
+npm run dev:qa         # qa: Neon
+```
+
+**Environment files:**
+
+| File | DB | Used for |
+|---|---|---|
+| `.env` | local Postgres | development |
+| `.env.qa` | Neon | QA / staging |
+| `.env.production` | Supabase | production (local run only) |
+
+**Schema push per environment:**
+```bash
+npm run db:push        # → local
+npm run db:push:qa     # → Neon
+npm run db:push:prod   # → Supabase
 ```
 
 ### Android
@@ -82,8 +98,37 @@ For local dev, emulator hits `10.0.2.2:3000`. For real device, update `API_BASE_
 - **Health endpoint wakes Neon** — `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
 - **Rate limiting + body size cap** — backend enforces per-IP rate limits and a request body size limit to prevent abuse.
 
+## Load Testing
+
+Tested with [k6](https://k6.io) across 13 runs covering baseline, post-fix regression, delta sync, spike, soak, and rate limiter validation.
+
+**Bottlenecks found and fixed:**
+
+| Fix | Impact |
+|---|---|
+| Firebase token cache (in-process, TTL = expiry) | Eliminates network call to Firebase after first auth |
+| Bulk SQL upsert (`INSERT ... ON CONFLICT DO UPDATE`) | 501 DB queries per sync → 1 |
+| UID existence cache in sync route | Skips `user.upsert` after first call per session |
+| Jittered backoff in Android `SyncWorker` (0–30s) | Prevents thundering herd on backend restart |
+| IP rate limit on `/users/register` | Closes abuse vector |
+| Auth cache size cap (10k entries) | Prevents unbounded memory growth |
+
+**Final results (local Postgres, single Node.js instance):**
+
+| Scenario | VUs | RPS | p95 | Errors |
+|---|---|---|---|---|
+| Empty sync sustained | 1,000 | 955 | 9ms | 0% |
+| Heavy sync (100 txns) | 10 | — | 4,200ms | 0% |
+| Delta sync (realistic) | 10 | — | 7.55ms | 0% |
+| Spike 0→1k VUs in 5s | 1,000 | 847 | 5.72ms | 0% |
+| Soak 30 min | 100 | 99.5 | 7.8ms | 0% |
+| Rate limiter | 1 | — | — | 429 at 61st req ✓ |
+
+Full report: [`docs/load-test-report.md`](docs/load-test-report.md)
+
 ## Docs
 
 - [`design_handoff_cc_settle/cc-settle-app-design.md`](design_handoff_cc_settle/cc-settle-app-design.md) — original architecture spec
 - [`design_handoff_cc_settle/README.md`](design_handoff_cc_settle/README.md) — UI design handoff
 - [`docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md`](docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md) — full-stack design spec
+- [`docs/load-test-report.md`](docs/load-test-report.md) — full load test report (13 runs)
