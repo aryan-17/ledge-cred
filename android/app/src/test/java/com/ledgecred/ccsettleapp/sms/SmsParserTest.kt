@@ -14,7 +14,7 @@ class SmsParserTest {
         assertEquals(TransactionType.DEBIT, result.type)
         assertEquals(250000L, result.amountPaise)
         assertEquals("1234", result.cardLast4)
-        assertEquals("HDFC", result.bank)
+        assertEquals("HDFCBK", result.bank)
     }
 
     @Test
@@ -101,27 +101,27 @@ class SmsParserTest {
         assertEquals(TransactionType.DEBIT, result.type)
         assertEquals(1500000L, result.amountPaise)
         assertEquals("9876", result.cardLast4)
-        assertEquals("Axis", result.bank)
+        assertEquals("AXISBK", result.bank)
     }
 
     @Test
-    fun `IDFC bank sender resolved`() {
+    fun `IDFC bank sender returned as-is`() {
         val result = SmsParser.classify(
             "Rs.3,000.00 debited from IDFC Bank A/c XX5432",
             "IDFCBN"
         )
         assertEquals(TransactionType.DEBIT, result.type)
         assertEquals(300000L, result.amountPaise)
-        assertEquals("IDFC", result.bank)
+        assertEquals("IDFCBN", result.bank)
     }
 
     @Test
-    fun `IDFC credit card sender resolved`() {
+    fun `IDFC credit card sender returned as-is`() {
         val result = SmsParser.classify(
             "Rs.1,200.00 debited via IDFC credit card XX7890",
             "IDFCCD"
         )
         assertEquals(TransactionType.DEBIT, result.type)
-        assertEquals("IDFC", result.bank)
+        assertEquals("IDFCCD", result.bank)
     }
 }

@@ -19,26 +19,36 @@ class NotificationCreditListener : NotificationListenerService() {
         val text   = extras.getCharSequence("android.text")?.toString()  ?: ""
         val body   = "$title $text"
 
-        // Only process UPI credit / received notifications — fast pre-filter
         val lower = body.lowercase()
-        if (!lower.contains("received") && !lower.contains("credited") &&
-            !lower.contains("you've got") && !lower.contains("money received")) return
+        // Fast pre-filter: must contain a credit or debit transaction keyword
+        val hasCredit = lower.contains("received") || lower.contains("credited") ||
+                        lower.contains("you've got") || lower.contains("money received")
+        val hasDebit  = lower.contains("spent") || lower.contains("debited") ||
+                        lower.contains("debit") || lower.contains("used at") ||
+                        lower.contains("withdrawn")
+        if (!hasCredit && !hasDebit) return
 
         val parsed = SmsParser.classify(body, sbn.packageName)
 
-        // Only SELF_TRANSFER (UPI credit) from notifications — DEBIT is covered by SMS
-        if (parsed.type != TransactionType.SELF_TRANSFER) return
+        // Handle UPI credits (SELF_TRANSFER) and bank push debit notifications (DEBIT)
+        if (parsed.type != TransactionType.SELF_TRANSFER && parsed.type != TransactionType.DEBIT) return
         val amount = parsed.amountPaise ?: return
 
         CoroutineScope(Dispatchers.IO).launch {
-            val db             = AppDatabase.getInstance(applicationContext)
-            val allTracked     = db.userCardDao().getAll().associateBy { it.last4 }
-            val accountLast4s  = allTracked.values.filter { it.type == "account" }.map { it.last4 }.toSet()
+            val db         = AppDatabase.getInstance(applicationContext)
+            val allTracked = db.userCardDao().getAll().associateBy { it.last4 }
 
             val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
 
-            // Only process if no accounts configured, OR body matches a tracked account last4
-            if (accountLast4s.isNotEmpty() && (bodyLast4 == null || bodyLast4 !in accountLast4s)) return@launch
+            if (parsed.type == TransactionType.SELF_TRANSFER) {
+                // Only process if no accounts configured, OR body matches a tracked account last4
+                val accountLast4s = allTracked.values.filter { it.type == "account" }.map { it.last4 }.toSet()
+                if (accountLast4s.isNotEmpty() && (bodyLast4 == null || bodyLast4 !in accountLast4s)) return@launch
+            } else {
+                // DEBIT: filter by tracked cards (mirrors SmsInboxReader behaviour)
+                val cardLast4s = allTracked.values.filter { it.type == "card" }.map { it.last4 }.toSet()
+                if (cardLast4s.isNotEmpty() && (bodyLast4 == null || bodyLast4 !in cardLast4s)) return@launch
+            }
 
             val bankName = allTracked[bodyLast4]?.bank ?: sbn.packageName.substringAfterLast(".")
 
@@ -50,29 +60,31 @@ class NotificationCreditListener : NotificationListenerService() {
             )
             if (db.transactionDao().findByDedupeHash(hash) != null) return@launch
 
-            // Match against an awaiting settle event
+            // Settle-event matching only applies to incoming credits
             var matchedEventId: String? = null
-            val match = db.settleEventDao().getAwaitingEvents().firstOrNull { event ->
-                kotlin.math.abs(event.requestedAmountPaise - amount) <= 100L
-            }
-            if (match != null) {
-                val isPartial = amount < match.requestedAmountPaise
-                db.settleEventDao().upsert(
-                    match.copy(
-                        status             = if (isPartial) "PARTIAL" else "CLEARED",
-                        clearedAt          = System.currentTimeMillis(),
-                        clearedAmountPaise = amount,
-                        updatedAt          = System.currentTimeMillis()
+            if (parsed.type == TransactionType.SELF_TRANSFER) {
+                val match = db.settleEventDao().getAwaitingEvents().firstOrNull { event ->
+                    kotlin.math.abs(event.requestedAmountPaise - amount) <= 100L
+                }
+                if (match != null) {
+                    val isPartial = amount < match.requestedAmountPaise
+                    db.settleEventDao().upsert(
+                        match.copy(
+                            status             = if (isPartial) "PARTIAL" else "CLEARED",
+                            clearedAt          = System.currentTimeMillis(),
+                            clearedAmountPaise = amount,
+                            updatedAt          = System.currentTimeMillis()
+                        )
                     )
-                )
-                matchedEventId = match.id
+                    matchedEventId = match.id
+                }
             }
 
             db.transactionDao().upsert(
                 Transaction(
                     id                   = UUID.randomUUID().toString(),
                     amountPaise          = amount,
-                    type                 = TransactionType.SELF_TRANSFER.name,
+                    type                 = parsed.type.name,
                     cardLast4            = bodyLast4,
                     bank                 = bankName,
                     txnTime              = sbn.postTime,
