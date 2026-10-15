@@ -29,13 +29,7 @@ class SyncRepository(
             settleEvents = localSes
         ))
 
-        response.transactions.forEach { dto ->
-            // Preserve local-only fields (lentTo) that server doesn't know about
-            val existing = db.transactionDao().findById(dto.id)
-            db.transactionDao().upsert(dto.toEntity().let { e ->
-                if (existing != null) e.copy(lentTo = existing.lentTo) else e
-            })
-        }
+        response.transactions.forEach { db.transactionDao().upsert(it.toEntity()) }
         response.settleEvents.forEach  { db.settleEventDao().upsert(it.toEntity()) }
 
         prefs.setLastSyncedAt(Instant.parse(response.syncedAt).toEpochMilli())
@@ -49,6 +43,7 @@ class SyncRepository(
         dedupeHash = dedupeHash, matchedSettleEventId = matchedSettleEventId,
         reviewed = reviewed,
         settledAt = settledAt?.let { Instant.ofEpochMilli(it).toString() },
+        lentTo = lentTo,
         updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
         deletedAt = deletedAt?.let { Instant.ofEpochMilli(it).toString() }
         // rawSms and smsTime intentionally omitted — never synced
@@ -63,6 +58,7 @@ class SyncRepository(
         suggestedType = null, suggestedConfidence = null,
         reviewed = reviewed,
         settledAt = settledAt?.let { Instant.parse(it).toEpochMilli() },
+        lentTo = lentTo,
         updatedAt = Instant.parse(updatedAt).toEpochMilli(),
         deletedAt = deletedAt?.let { Instant.parse(it).toEpochMilli() }
     )

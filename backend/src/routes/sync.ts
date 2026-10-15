@@ -135,6 +135,7 @@ syncRoute.post('/', async (c) => {
       ${tx.suggestedType ?? null}, ${tx.suggestedConfidence ?? null},
       ${tx.reviewed ?? false},
       ${tx.settledAt ? new Date(tx.settledAt) : null},
+      ${tx.lentTo ?? null},
       ${new Date(tx.updatedAt)},
       ${tx.deletedAt ? new Date(tx.deletedAt) : null}
     )`)
@@ -142,7 +143,7 @@ syncRoute.post('/', async (c) => {
       INSERT INTO "Transaction"
         (id, "userId", "amountPaise", type, "cardLast4", bank, "txnTime",
          "dedupeHash", "matchedSettleEventId", "suggestedType", "suggestedConfidence",
-         reviewed, "settledAt", "updatedAt", "deletedAt")
+         reviewed, "settledAt", "lentTo", "updatedAt", "deletedAt")
       VALUES ${Prisma.join(vals)}
       ON CONFLICT (id) DO UPDATE SET
         "userId"               = EXCLUDED."userId",
@@ -157,6 +158,7 @@ syncRoute.post('/', async (c) => {
         "suggestedConfidence"  = EXCLUDED."suggestedConfidence",
         reviewed               = EXCLUDED.reviewed,
         "settledAt"            = EXCLUDED."settledAt",
+        "lentTo"               = EXCLUDED."lentTo",
         "updatedAt"            = EXCLUDED."updatedAt",
         "deletedAt"            = EXCLUDED."deletedAt"
     `
@@ -222,6 +224,7 @@ function mapTxToDb(tx: SyncTransaction, uid: string) {
     suggestedConfidence: tx.suggestedConfidence ?? null,
     reviewed: tx.reviewed ?? false,
     settledAt: tx.settledAt ? new Date(tx.settledAt) : null,
+    lentTo: tx.lentTo ?? null,
     updatedAt: new Date(tx.updatedAt),
     deletedAt: tx.deletedAt ? new Date(tx.deletedAt) : null
   }
@@ -241,6 +244,7 @@ function mapTxFromDb(tx: any): SyncTransaction {
     suggestedConfidence: tx.suggestedConfidence,
     reviewed: tx.reviewed,
     settledAt: tx.settledAt?.toISOString() ?? null,
+    lentTo: tx.lentTo ?? null,
     updatedAt: tx.updatedAt.toISOString(),
     deletedAt: tx.deletedAt?.toISOString() ?? null
   }

@@ -27,6 +27,7 @@ export interface SyncTransaction {
   suggestedConfidence: number | null
   reviewed: boolean
   settledAt: string | null  // ISO 8601 — manually marked as paid, no SMS involved
+  lentTo: string | null     // friend name if lent, null if personal spend
   updatedAt: string         // ISO 8601
   deletedAt: string | null  // ISO 8601
 }

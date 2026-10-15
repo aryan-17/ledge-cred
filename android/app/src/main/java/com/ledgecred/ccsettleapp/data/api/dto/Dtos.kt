@@ -11,6 +11,7 @@ data class SyncTransactionDto(
     val matchedSettleEventId: String?,
     val reviewed: Boolean,
     val settledAt: String?,
+    val lentTo: String?,
     val updatedAt: String,
     val deletedAt: String?
 )
