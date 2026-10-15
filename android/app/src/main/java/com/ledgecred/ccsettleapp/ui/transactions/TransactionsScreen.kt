@@ -1,5 +1,6 @@
 package com.ledgecred.ccsettleapp.ui.transactions
 
+import android.content.ActivityNotFoundException
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,11 +10,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,7 +74,11 @@ fun TransactionsScreen(
                     tx = tx,
                     onDiscard = { vm.discard(tx.id) },
                     onSettle = { vm.settle(tx.id) },
-                    onUnsettle = { vm.unsettle(tx.id) }
+                    onUnsettle = { vm.unsettle(tx.id) },
+                    onMarkLent = { name -> vm.markLent(tx.id, name) },
+                    onClearLent = { vm.clearLent(tx.id) },
+                    onShare = { vm.buildShareIntent(tx) },
+                    onShareFallback = { vm.buildShareIntentFallback(tx) }
                 )
             }
             item { Spacer(Modifier.height(20.dp)) }
@@ -81,15 +91,23 @@ private fun TransactionItem(
     tx: Transaction,
     onDiscard: () -> Unit,
     onSettle: () -> Unit,
-    onUnsettle: () -> Unit
+    onUnsettle: () -> Unit,
+    onMarkLent: (String) -> Unit,
+    onClearLent: () -> Unit,
+    onShare: () -> android.content.Intent,
+    onShareFallback: () -> android.content.Intent
 ) {
     var showConfirm by remember { mutableStateOf(false) }
+    var showLentDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val isSettled  = tx.settledAt != null
+    val isLent     = tx.lentTo != null
     val isCredit   = tx.type in listOf("REFUND", "SELF_TRANSFER")
     val isUnparsed = tx.type == "UNPARSED"
     val amountColor  = when {
         isSettled                              -> TextDisabled
+        isLent                                 -> Blue
         tx.type == "REFUND" || tx.type == "SELF_TRANSFER" -> Green
         isUnparsed                             -> TextLabel
         else                                   -> TextPrimary
@@ -103,22 +121,61 @@ private fun TransactionItem(
         else            -> TextDisabled
     }
 
+    // Lent dialog
+    if (showLentDialog) {
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showLentDialog = false },
+            containerColor = Surface,
+            title = { Text("Lent to whom?",
+                color = TextPrimary, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("Friend's name", color = TextDisabled) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = Amber,
+                        unfocusedBorderColor = TextDisabled,
+                        cursorColor = Amber
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { if (name.isNotBlank()) { onMarkLent(name.trim()); showLentDialog = false } },
+                    enabled = name.isNotBlank()
+                ) {
+                    Text("Mark as lent", color = Amber, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLentDialog = false }) {
+                    Text("Cancel", color = TextLabel)
+                }
+            }
+        )
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface, RoundedCornerShape(14.dp))
+            .background(if (isLent) Surface.copy(alpha = 0.8f) else Surface, RoundedCornerShape(14.dp))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar
         Box(
-            Modifier.size(36.dp).background(AmberIconBg, CircleShape),
+            Modifier.size(36.dp).background(if (isLent) Color(0xFF0D1520) else AmberIconBg, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                tx.bank.take(2).uppercase(),
+                if (isLent) tx.lentTo!!.take(2).uppercase() else tx.bank.take(2).uppercase(),
                 fontFamily = InstrumentSans, fontWeight = FontWeight.Bold,
-                fontSize = 11.sp, color = Amber
+                fontSize = 11.sp, color = if (isLent) Blue else Amber
             )
         }
 
@@ -140,6 +197,11 @@ private fun TransactionItem(
                     Text("SETTLED", fontFamily = JetBrainsMono, fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold, color = Green)
                 }
+                if (isLent) {
+                    Text("·", color = TextDisabled, fontSize = 9.sp)
+                    Text("LENT → ${tx.lentTo}", fontFamily = JetBrainsMono, fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold, color = Blue)
+                }
             }
         }
 
@@ -152,6 +214,42 @@ private fun TransactionItem(
         }
 
         Spacer(Modifier.width(4.dp))
+
+        // Lent toggle (DEBIT only)
+        if (tx.type == "DEBIT") {
+            IconButton(
+                onClick = { if (isLent) onClearLent() else showLentDialog = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    if (isLent) Icons.Filled.Person else Icons.Outlined.Person,
+                    contentDescription = if (isLent) "Remove lent tag" else "Mark as lent",
+                    tint = if (isLent) Blue else TextDisabled,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        // WhatsApp share (lent txns only)
+        if (isLent) {
+            IconButton(
+                onClick = {
+                    try {
+                        context.startActivity(onShare())
+                    } catch (_: ActivityNotFoundException) {
+                        context.startActivity(onShareFallback())
+                    }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Share,
+                    contentDescription = "Share receipt on WhatsApp",
+                    tint = Green,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
 
         // Settle toggle — requires confirm to prevent accidental taps
         if (tx.type == "DEBIT") {

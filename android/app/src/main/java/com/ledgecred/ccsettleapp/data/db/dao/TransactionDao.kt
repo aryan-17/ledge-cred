@@ -48,6 +48,16 @@ interface TransactionDao {
     @Query("UPDATE transactions SET settledAt = :settledAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setSettledAt(id: String, settledAt: Long?, updatedAt: Long)
 
+    @Query("UPDATE transactions SET lentTo = :name, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setLentTo(id: String, name: String?, updatedAt: Long)
+
+    @Query("""
+        SELECT COALESCE(SUM(amountPaise), 0)
+        FROM transactions
+        WHERE type = 'DEBIT' AND lentTo IS NOT NULL AND deletedAt IS NULL AND settledAt IS NULL
+    """)
+    fun observeLentTotal(): Flow<Long>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(vararg tx: Transaction)
 }

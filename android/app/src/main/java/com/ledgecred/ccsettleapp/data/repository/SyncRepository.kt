@@ -29,7 +29,13 @@ class SyncRepository(
             settleEvents = localSes
         ))
 
-        response.transactions.forEach { db.transactionDao().upsert(it.toEntity()) }
+        response.transactions.forEach { dto ->
+            // Preserve local-only fields (lentTo) that server doesn't know about
+            val existing = db.transactionDao().findById(dto.id)
+            db.transactionDao().upsert(dto.toEntity().let { e ->
+                if (existing != null) e.copy(lentTo = existing.lentTo) else e
+            })
+        }
         response.settleEvents.forEach  { db.settleEventDao().upsert(it.toEntity()) }
 
         prefs.setLastSyncedAt(Instant.parse(response.syncedAt).toEpochMilli())

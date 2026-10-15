@@ -14,6 +14,7 @@ import java.time.ZoneId
 
 data class HomeUiState(
     val pendingPaise: Long       = 0L,
+    val lentPaise: Long          = 0L,
     val dailyCapPaise: Long      = 10_000_000L,
     val settledTodayPaise: Long  = 0L,
     val todaySpendPaise: Long    = 0L,
@@ -44,8 +45,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 db.transactionDao().observeRecent(5),
                 combine(
                     db.settleEventDao().observeAll(),
-                    db.transactionDao().observeTodaySpend(todayStart)
-                ) { events, todaySpend -> Pair(events, todaySpend) }
+                    db.transactionDao().observeTodaySpend(todayStart),
+                    db.transactionDao().observeLentTotal()
+                ) { events, todaySpend, lent -> Triple(events, todaySpend, lent) }
             ) { values ->
                 val pending    = values[0] as Long
                 val cap        = values[1] as Long
@@ -53,8 +55,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 @Suppress("UNCHECKED_CAST")
                 val recent     = values[3] as List<Transaction>
                 @Suppress("UNCHECKED_CAST")
-                val eventsPair  = values[4] as Pair<List<com.ledgecred.ccsettleapp.data.db.entity.SettleEvent>, Long>
-                val (events, todaySpend) = eventsPair
+                val triple     = values[4] as Triple<List<com.ledgecred.ccsettleapp.data.db.entity.SettleEvent>, Long, Long>
+                val (events, todaySpend, lent) = triple
 
                 val settledToday = events
                     .filter { it.clearedAt != null && it.clearedAt >= todayStart }
@@ -64,6 +66,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
                 HomeUiState(
                     pendingPaise       = pending,
+                    lentPaise          = lent,
                     dailyCapPaise      = cap,
                     settledTodayPaise  = settledToday,
                     todaySpendPaise    = todaySpend,

@@ -20,7 +20,7 @@ class SettleRepository(
         db.settleEventDao().observeAll()
     ) { txs, events ->
         // Filtering by card happens at ingestion (SmsReceiver/SmsInboxReader) — all stored DEBITs are relevant
-        val debits        = txs.filter { it.type == "DEBIT"         && it.deletedAt == null && it.settledAt == null }.sumOf { it.amountPaise }
+        val debits        = txs.filter { it.type == "DEBIT"         && it.deletedAt == null && it.settledAt == null && it.lentTo == null }.sumOf { it.amountPaise }
         val refunds       = txs.filter { it.type == "REFUND"        && it.deletedAt == null }.sumOf { it.amountPaise }
         val selfTransfers = txs.filter { it.type == "SELF_TRANSFER" && it.deletedAt == null }.sumOf { it.amountPaise }
         maxOf(0L, debits - refunds - selfTransfers)

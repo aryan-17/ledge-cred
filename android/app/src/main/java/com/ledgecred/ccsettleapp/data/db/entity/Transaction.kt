@@ -20,6 +20,7 @@ data class Transaction(
     val suggestedConfidence: Float?,
     val reviewed: Boolean = false,
     val settledAt: Long? = null,        // manually marked as paid — no SMS involved
+    val lentTo: String? = null,         // local only — friend name if lent, null if personal spend
     val updatedAt: Long = System.currentTimeMillis(),
     val deletedAt: Long? = null
 )

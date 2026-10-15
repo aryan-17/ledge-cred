@@ -90,9 +90,13 @@ fun HomeScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     StatCard("TODAY", formatIndianRupees(state.todaySpendPaise), TextSecondary, Modifier.weight(1f))
-                    StatCard("LAST SETTLE",
-                        state.lastSettleAt?.let { relativeTime(it) } ?: "—",
-                        Green, Modifier.weight(1f))
+                    if (state.lentPaise > 0L) {
+                        StatCard("OWED", formatIndianRupees(state.lentPaise), Blue, Modifier.weight(1f))
+                    } else {
+                        StatCard("LAST SETTLE",
+                            state.lastSettleAt?.let { relativeTime(it) } ?: "—",
+                            Green, Modifier.weight(1f))
+                    }
                     StatCard("REVIEW", state.unreviewedCount.toString(),
                         if (state.unreviewedCount > 0) AmberDeep else TextLabel,
                         Modifier.weight(1f))
