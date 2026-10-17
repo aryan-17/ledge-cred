@@ -99,6 +99,8 @@ private fun TransactionItem(
 ) {
     var showConfirm by remember { mutableStateOf(false) }
     var showLentDialog by remember { mutableStateOf(false) }
+    var showLentOptions by remember { mutableStateOf(false) }
+    var showChangeName by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val isSettled  = tx.settledAt != null
@@ -121,7 +123,7 @@ private fun TransactionItem(
         else            -> TextDisabled
     }
 
-    // Lent dialog
+    // New lent — enter name
     if (showLentDialog) {
         var name by remember { mutableStateOf("") }
         AlertDialog(
@@ -160,10 +162,104 @@ private fun TransactionItem(
         )
     }
 
+    // Lent options — share, change name, remove
+    if (showLentOptions) {
+        AlertDialog(
+            onDismissRequest = { showLentOptions = false },
+            containerColor = Surface,
+            title = { Text("Lent to ${tx.lentTo}",
+                color = Blue, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "${formatIndianRupees(tx.amountPaise)} · ${shortDate(tx.txnTime)}",
+                        fontFamily = JetBrainsMono, fontSize = 12.sp, color = TextLabel
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        onClick = {
+                            showLentOptions = false
+                            try { context.startActivity(onShare()) }
+                            catch (_: ActivityNotFoundException) { context.startActivity(onShareFallback()) }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Share, null, tint = Green, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Share receipt", color = TextPrimary, fontFamily = InstrumentSans,
+                            modifier = Modifier.weight(1f))
+                    }
+                    TextButton(
+                        onClick = { showLentOptions = false; showChangeName = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Outlined.Person, null, tint = Blue, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Change name", color = TextPrimary, fontFamily = InstrumentSans,
+                            modifier = Modifier.weight(1f))
+                    }
+                    TextButton(
+                        onClick = { onClearLent(); showLentOptions = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Delete, null, tint = Red, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Remove lent tag", color = Red, fontFamily = InstrumentSans,
+                            modifier = Modifier.weight(1f))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLentOptions = false }) {
+                    Text("Close", color = TextLabel)
+                }
+            }
+        )
+    }
+
+    // Change name dialog
+    if (showChangeName) {
+        var newName by remember { mutableStateOf(tx.lentTo ?: "") }
+        AlertDialog(
+            onDismissRequest = { showChangeName = false },
+            containerColor = Surface,
+            title = { Text("Change name",
+                color = TextPrimary, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = Amber,
+                        unfocusedBorderColor = TextDisabled,
+                        cursorColor = Amber
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { if (newName.isNotBlank()) { onMarkLent(newName.trim()); showChangeName = false } },
+                    enabled = newName.isNotBlank()
+                ) {
+                    Text("Save", color = Amber, fontFamily = InstrumentSans, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showChangeName = false }) {
+                    Text("Cancel", color = TextLabel)
+                }
+            }
+        )
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isLent) Surface.copy(alpha = 0.8f) else Surface, RoundedCornerShape(14.dp))
+            .background(Surface, RoundedCornerShape(14.dp))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -182,8 +278,23 @@ private fun TransactionItem(
         Spacer(Modifier.width(12.dp))
 
         Column(Modifier.weight(1f)) {
-            Text(tx.bank, fontFamily = InstrumentSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.5.sp, color = TextPrimary)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(tx.bank, fontFamily = InstrumentSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp, color = TextPrimary)
+                if (isLent) {
+                    Text(
+                        tx.lentTo!!,
+                        fontFamily = JetBrainsMono, fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                        color = Blue,
+                        modifier = Modifier
+                            .background(Blue.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(tx.type, fontFamily = JetBrainsMono, fontSize = 9.sp, color = typeColor)
                 Text("·", color = TextDisabled, fontSize = 9.sp)
@@ -196,11 +307,6 @@ private fun TransactionItem(
                     Text("·", color = TextDisabled, fontSize = 9.sp)
                     Text("SETTLED", fontFamily = JetBrainsMono, fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold, color = Green)
-                }
-                if (isLent) {
-                    Text("·", color = TextDisabled, fontSize = 9.sp)
-                    Text("LENT → ${tx.lentTo}", fontFamily = JetBrainsMono, fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold, color = Blue)
                 }
             }
         }
@@ -215,38 +321,17 @@ private fun TransactionItem(
 
         Spacer(Modifier.width(4.dp))
 
-        // Lent toggle (DEBIT only)
+        // Lent toggle (DEBIT only) — opens options dialog if already lent
         if (tx.type == "DEBIT") {
             IconButton(
-                onClick = { if (isLent) onClearLent() else showLentDialog = true },
+                onClick = { if (isLent) showLentOptions = true else showLentDialog = true },
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
                     if (isLent) Icons.Filled.Person else Icons.Outlined.Person,
-                    contentDescription = if (isLent) "Remove lent tag" else "Mark as lent",
+                    contentDescription = if (isLent) "Lent options" else "Mark as lent",
                     tint = if (isLent) Blue else TextDisabled,
                     modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        // WhatsApp share (lent txns only)
-        if (isLent) {
-            IconButton(
-                onClick = {
-                    try {
-                        context.startActivity(onShare())
-                    } catch (_: ActivityNotFoundException) {
-                        context.startActivity(onShareFallback())
-                    }
-                },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Filled.Share,
-                    contentDescription = "Share receipt on WhatsApp",
-                    tint = Green,
-                    modifier = Modifier.size(16.dp)
                 )
             }
         }
