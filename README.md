@@ -9,9 +9,10 @@ No bank API is available to individual developers in India. SMS alerts are the o
 ## How it works
 
 1. Open app → reads last 7 days of SMS inbox → parses bank alerts for your tracked cards
-2. Home screen shows total pending (Σ debits − Σ refunds − Σ self-transfers)
-3. Transfer manually via any UPI app → bank sends credit SMS → app picks it up next open → pending resets
-4. All data synced to backend every 15 min via WorkManager
+2. Home screen shows total pending (Σ debits − Σ refunds − Σ self-transfers − Σ lent)
+3. Friend used your CC? Tag the txn as "lent to {name}" → excluded from pending, tracked under "OWED" → share receipt via WhatsApp
+4. Transfer manually via any UPI app → bank sends credit SMS → app picks it up next open → pending resets
+5. All data synced to backend every 15 min via WorkManager
 
 ## Stack
 
@@ -95,6 +96,7 @@ For local dev, emulator hits `10.0.2.2:3000`. For real device, update `API_BASE_
 - **Local-first** — Room is source of truth. Backend is sync target + backup. App works fully offline.
 - **No AI in critical path** — SMS classification is pure regex + keyword matching. Fast, deterministic, no API cost.
 - **Paise everywhere** — all amounts stored as `Long` (paise). Never `Float`. Indian grouping for display (₹1,04,300).
+- **Lent tracking** — tag any DEBIT as "lent to {friend}" to exclude it from pending balance. Lent txns tracked separately with "OWED" stat on home. Options dialog for share receipt (WhatsApp), change name, or remove tag. Synced to backend via `lentTo` field.
 - **Health endpoint wakes Neon** — `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
 - **Rate limiting + body size cap** — backend enforces per-IP rate limits and a request body size limit to prevent abuse.
 
