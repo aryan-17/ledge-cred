@@ -130,7 +130,7 @@ Full report: [`docs/load-test-report.md`](docs/load-test-report.md)
 
 ## Docs
 
-- [`design_handoff_cc_settle/cc-settle-app-design.md`](design_handoff_cc_settle/cc-settle-app-design.md) — original architecture spec
+- [`design_handoff_cc_settle/cc-settle-app-design.md`](design_handoff_cc_settle/cc-settle-app-design.md), original architecture spec
 - [`design_handoff_cc_settle/README.md`](design_handoff_cc_settle/README.md) — UI design handoff
 - [`docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md`](docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md) — full-stack design spec
 - [`docs/load-test-report.md`](docs/load-test-report.md) — full load test report (13 runs)
