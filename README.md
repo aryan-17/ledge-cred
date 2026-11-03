@@ -124,7 +124,7 @@ Tested with [k6](https://k6.io) across 13 runs covering baseline, post-fix regre
 | Delta sync (realistic) | 10 | — | 7.55ms | 0% |
 | Spike 0→1k VUs in 5s | 1,000 | 847 | 5.72ms | 0% |
 | Soak 30 min | 100 | 99.5 | 7.8ms | 0% |
-| Rate limiter | 1 | — | — | 429 at 61st req ✓ |
+| Rate limiter | 1 | — | — | 429 at 61st req |
 
 Full report: [`docs/load-test-report.md`](docs/load-test-report.md)
 
