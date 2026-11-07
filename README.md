@@ -97,7 +97,7 @@ For local dev, emulator hits `10.0.2.2:3000`. For real device, update `API_BASE_
 - **No AI in critical path** — SMS classification is pure regex + keyword matching. Fast, deterministic, no API cost.
 - **Paise everywhere** — all amounts stored as `Long` (paise). Never `Float`. Indian grouping for display (₹1,04,300).
 - **Lent tracking** — tag any DEBIT as "lent to {friend}" to exclude it from pending balance. Lent txns tracked separately with "OWED" stat on home. Options dialog for share receipt (WhatsApp), change name, or remove tag. Synced to backend via `lentTo` field.
-- **Health endpoint wakes Neon** — `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
+- **Health endpoint wakes Neon** `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
 - **Rate limiting + body size cap** — backend enforces per-IP rate limits and a request body size limit to prevent abuse.
 
 ## Load Testing
