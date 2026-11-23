@@ -97,7 +97,7 @@ For local dev, emulator hits `10.0.2.2:3000`. For real device, update `API_BASE_
 - **No AI in critical path** — SMS classification is pure regex + keyword matching. Fast, deterministic, no API cost.
 - **Paise everywhere** — all amounts stored as `Long` (paise). Never `Float`. Indian grouping for display (₹1,04,300).
 - **Lent tracking** — tag any DEBIT as "lent to {friend}" to exclude it from pending balance. Lent txns tracked separately with "OWED" stat on home. Options dialog for share receipt (WhatsApp), change name, or remove tag. Synced to backend via `lentTo` field.
-- **Health endpoint wakes Neon** — `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
+- **Health endpoint wakes Neon** `GET /health` runs a `SELECT 1` to keep the Neon serverless DB from cold-starting on the first real request.
 - **Rate limiting + body size cap** — backend enforces per-IP rate limits and a request body size limit to prevent abuse.
 
 ## Load Testing
@@ -124,13 +124,13 @@ Tested with [k6](https://k6.io) across 13 runs covering baseline, post-fix regre
 | Delta sync (realistic) | 10 | — | 7.55ms | 0% |
 | Spike 0→1k VUs in 5s | 1,000 | 847 | 5.72ms | 0% |
 | Soak 30 min | 100 | 99.5 | 7.8ms | 0% |
-| Rate limiter | 1 | — | — | 429 at 61st req ✓ |
+| Rate limiter | 1 | — | — | 429 at 61st req |
 
 Full report: [`docs/load-test-report.md`](docs/load-test-report.md)
 
 ## Docs
 
-- [`design_handoff_cc_settle/cc-settle-app-design.md`](design_handoff_cc_settle/cc-settle-app-design.md) — original architecture spec
+- [`design_handoff_cc_settle/cc-settle-app-design.md`](design_handoff_cc_settle/cc-settle-app-design.md), original architecture spec
 - [`design_handoff_cc_settle/README.md`](design_handoff_cc_settle/README.md) — UI design handoff
 - [`docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md`](docs/superpowers/specs/2026-08-02-cc-settle-fullstack-design.md) — full-stack design spec
 - [`docs/load-test-report.md`](docs/load-test-report.md) — full load test report (13 runs)
