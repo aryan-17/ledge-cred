@@ -9,8 +9,9 @@ const DECLINED_KEYWORDS = ['declined', 'failed', 'unsuccessful']
 const STATEMENT_KEYWORDS = ['statement', 'minimum amount due', 'min. amount due', 'payment due',
   'received towards', 'payment received', 'payment of', 'bill payment', 'amount due']
 const HOLD_KEYWORDS     = ['hold', 'authorization hold', 'pre-auth', 'pre auth']
+const REFUND_KEYWORDS   = ['refund', 'cashback', 'reversal', 'money back']
 // 'credited' not 'credit' — avoids matching "credit card" as a credit transaction
-const CREDIT_KEYWORDS   = ['credited', 'received', 'refund', 'cashback', 'reversal', 'money back']
+const CREDIT_KEYWORDS   = ['credited', 'received']
 const DEBIT_KEYWORDS    = ['debited', 'debit', 'withdrawn', 'spent', 'used at', 'paid']
 // Only explicit card references count — 'xx' alone also matches account numbers
 const CARD_KEYWORDS     = ['credit card', 'debit card']
@@ -38,6 +39,7 @@ export function parseSms(sender: string, body: string): ParsedSms {
   if (match(HOLD_KEYWORDS))      return { type: 'UNPARSED',  amountPaise: null, cardLast4,       bank }
 
   const amount   = extractAmountPaise(body)
+  const isRefund = match(REFUND_KEYWORDS)
   const isCredit = match(CREDIT_KEYWORDS)
   const isDebit  = match(DEBIT_KEYWORDS)
   const isCard   = match(CARD_KEYWORDS)
@@ -45,6 +47,10 @@ export function parseSms(sender: string, body: string): ParsedSms {
   // Debit checked first — "spent/debited" wins even if "credit card" appears in the text
   if (isDebit && amount !== null) {
     return { type: 'DEBIT', amountPaise: amount, cardLast4, bank }
+  }
+  // Explicit refund/cashback/reversal → always REFUND
+  if (isRefund && amount !== null) {
+    return { type: 'REFUND', amountPaise: amount, cardLast4, bank }
   }
   if (isCredit && amount !== null) {
     return { type: isCard ? 'REFUND' : 'SELF_TRANSFER', amountPaise: amount, cardLast4, bank }

@@ -41,9 +41,9 @@ class NotificationCreditListener : NotificationListenerService() {
             val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
 
             if (parsed.type == TransactionType.SELF_TRANSFER) {
-                // Only process if no accounts configured, OR body matches a tracked account last4
+                // Only process if body matches a tracked account last4
                 val accountLast4s = allTracked.values.filter { it.type == "account" }.map { it.last4 }.toSet()
-                if (accountLast4s.isNotEmpty() && (bodyLast4 == null || bodyLast4 !in accountLast4s)) return@launch
+                if (bodyLast4 == null || bodyLast4 !in accountLast4s) return@launch
             } else {
                 // DEBIT: filter by tracked cards (mirrors SmsInboxReader behaviour)
                 val cardLast4s = allTracked.values.filter { it.type == "card" }.map { it.last4 }.toSet()

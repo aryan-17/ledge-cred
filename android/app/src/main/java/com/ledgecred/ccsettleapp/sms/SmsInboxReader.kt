@@ -28,10 +28,10 @@ object SmsInboxReader {
         // Load all existing hashes into memory — O(1) lookup per SMS instead of O(n) DB queries
         val existingHashes = db.transactionDao().getAllDedupeHashes().toHashSet()
 
-        // Load tracked entries — cards for DEBIT filtering, accounts for notification credits
-        val trackedCards     = db.userCardDao().getAll().associateBy { it.last4 }
+        // Load tracked entries — cards for DEBIT filtering, accounts for SELF_TRANSFER filtering
+        val trackedCards      = db.userCardDao().getAll().associateBy { it.last4 }
         val trackedCardLast4s = trackedCards.values.filter { it.type == "card" }.map { it.last4 }.toSet()
-        val trackedLast4s    = trackedCardLast4s  // DEBIT SMS filtered by card last4s only
+        val trackedAcctLast4s = trackedCards.values.filter { it.type == "account" }.map { it.last4 }.toSet()
 
         val cursor = context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
@@ -55,10 +55,13 @@ object SmsInboxReader {
                         TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT
                     )) continue
 
-                // Filter by tracked card last4s (SELF_TRANSFER exempt)
                 val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
-                if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
-                    if (bodyLast4 == null || bodyLast4 !in trackedLast4s) continue
+
+                // SELF_TRANSFER: only process if body matches a tracked account
+                if (parsed.type == TransactionType.SELF_TRANSFER) {
+                    if (bodyLast4 == null || bodyLast4 !in trackedAcctLast4s) continue
+                } else if (trackedCardLast4s.isNotEmpty()) {
+                    if (bodyLast4 == null || bodyLast4 !in trackedCardLast4s) continue
                 }
 
                 // Bank name from UserCard — works for any bank worldwide

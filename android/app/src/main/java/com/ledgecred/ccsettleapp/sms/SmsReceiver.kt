@@ -30,13 +30,17 @@ class SmsReceiver : BroadcastReceiver() {
             if (parsed.type in listOf(TransactionType.OTP, TransactionType.DECLINED, TransactionType.STATEMENT)) return@forEach
 
             CoroutineScope(Dispatchers.IO).launch {
-                val trackedLast4s = db.userCardDao().getAll().filter { it.type == "card" }.map { it.last4 }.toSet()
+                val allTracked       = db.userCardDao().getAll()
+                val trackedCardLast4s = allTracked.filter { it.type == "card" }.map { it.last4 }.toSet()
+                val trackedAcctLast4s = allTracked.filter { it.type == "account" }.map { it.last4 }.toSet()
 
-                // If user has configured cards, only process SMS containing one of their last4s
-                // For SELF_TRANSFER (savings account credit), skip last4 filter
-                if (trackedLast4s.isNotEmpty() && parsed.type != TransactionType.SELF_TRANSFER) {
-                    val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
-                    if (bodyLast4 == null || bodyLast4 !in trackedLast4s) return@launch
+                val bodyLast4 = SmsParser.CARD_LAST4_REGEX.find(body)?.groupValues?.get(1)
+
+                // SELF_TRANSFER: only process if body matches a tracked account
+                if (parsed.type == TransactionType.SELF_TRANSFER) {
+                    if (bodyLast4 == null || bodyLast4 !in trackedAcctLast4s) return@launch
+                } else if (trackedCardLast4s.isNotEmpty()) {
+                    if (bodyLast4 == null || bodyLast4 !in trackedCardLast4s) return@launch
                 }
 
                 if (parsed.amountPaise == null && parsed.type != TransactionType.UNPARSED) return@launch

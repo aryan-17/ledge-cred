@@ -17,7 +17,8 @@ object SmsParser {
     private val STATEMENT_KEYWORDS = listOf("statement", "minimum amount due", "min. amount due", "payment due",
         "received towards", "payment of", "bill payment", "amount due")
     private val HOLD_KEYWORDS     = listOf("hold", "authorization hold", "pre-auth", "pre auth")
-    private val CREDIT_KEYWORDS   = listOf("credited", "received", "refund", "cashback", "reversal", "money back")
+    private val REFUND_KEYWORDS   = listOf("refund", "cashback", "reversal", "money back")
+    private val CREDIT_KEYWORDS   = listOf("credited", "received")
     private val DEBIT_KEYWORDS    = listOf("debited", "debit", "withdrawn", "spent", "used at", "paid")
     // Only explicit card references — 'xx' alone also matches account numbers
     private val CARD_KEYWORDS     = listOf("credit card", "debit card")
@@ -32,12 +33,15 @@ object SmsParser {
         if (HOLD_KEYWORDS.any     { lower.contains(it) }) return ParsedSms(TransactionType.UNPARSED,  null,             cardLast4, sender)
 
         val amount   = extractAmountPaise(sms)
+        val isRefund = REFUND_KEYWORDS.any { lower.contains(it) }
         val isCredit = CREDIT_KEYWORDS.any { lower.contains(it) }
         val isDebit  = DEBIT_KEYWORDS.any  { lower.contains(it) }
         val isCard   = CARD_KEYWORDS.any   { lower.contains(it) }
 
         // Debit checked first — "spent/debited" wins even if "credit card" appears in the text
         if (isDebit && amount != null) return ParsedSms(TransactionType.DEBIT, amount, cardLast4, sender)
+        // Explicit refund/cashback/reversal → always REFUND
+        if (isRefund && amount != null) return ParsedSms(TransactionType.REFUND, amount, cardLast4, sender)
         if (isCredit && amount != null) {
             val type = if (isCard) TransactionType.REFUND else TransactionType.SELF_TRANSFER
             return ParsedSms(type, amount, cardLast4, sender)
